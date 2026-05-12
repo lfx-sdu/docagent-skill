@@ -1,44 +1,56 @@
 ---
 name: docagent-extraction
-description: "Implement and debug DocuAgent extraction execution workflows end-to-end across backend execution modules and frontend extraction result views. Use when requests involve extraction list/count/filter issues, extraction execution states, extraction API contracts, or `/document-extraction` and extraction result cards."
+description: Calls DocuAgent Agents API Air8 extraction endpoints—validate/extract documents and merged field-config preview—with execution-status polling via execution_id. Use when users mention document extraction, validate_and_extract_docs, field_config_id, or extraction pipeline against /agents/v1.
 ---
 
-# Docagent Extraction
+# DocuAgent extraction (Air8 API)
 
-## Primary Backend Areas
+Base: `$DOCAGENT_AGENTS_API_BASE_URL` — paths below are appended.
 
-- `backend/llm-execution-service/src/sdu-extraction-execution/business/queries`
-- `backend/llm-execution-service/src/sdu-extraction-execution/business/services`
-- `backend/llm-execution-service/src/sdu-extraction-execution/controller`
+Schemas: `$DOCAGENT_AGENTS_API_BASE_URL/openapi.json` (`DocsValidationRequest`, `MergeConfigRequest`, …).
 
-## Primary Frontend Areas
+## Start extraction / validation
 
-- `frontend/app/components/documentResultsCard`
-- `frontend/app/components/documentResultsCard/components/documentExtractionResultsListCard`
-- `frontend/app/components/documentResultsCard/hooks`
-- `frontend/app/models/results`
-- `frontend/app/services/results`
+`POST /air8_integration/validate_and_extract_docs`
 
-## Workflow
+Body fields (minimum from OpenAPI): `file_uri`, `order_id`, `nation`, `possible_doc_type` (array). Optional includes `execution_id`, `created_by`, `field_config_id`, `parent_config_id`, preprocessing flags (`enable_image_preprocessing`, `rotate_upright`, …), `external_context`, `prompt_template_id`, etc.
 
-1. Reproduce the issue in extraction list/count/filter/sort behavior.
-2. Trace API path: controller DTO -> business query/service -> repository/query builder.
-3. Verify execution status mapping and total-count semantics match list query.
-4. Align frontend model/service parsing with backend response fields.
-5. Fix shared contracts first, then adjust presentation components.
+```bash
+curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/validate_and_extract_docs" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_uri":"<blob-url-or-uri>",
+    "order_id":"<order-id>",
+    "nation":"<nation>",
+    "possible_doc_type":["invoice"],
+    "execution_id":"<optional-stable-exec-id>",
+    "created_by":"<user-or-service-id>"
+  }'
+```
 
-## Common Failure Patterns
+Response (typical): `execution_id`, `status`. Poll until terminal.
 
-- List query and count query apply different filters.
-- DTO defaults diverge from frontend filter defaults.
-- Status enums differ between backend payload and frontend type union.
-- Pagination indexing mismatch (page vs offset assumptions).
-- Frontend keeps stale state after filter/sort updates.
+## Poll execution status
 
-## Done Criteria
+`GET /air8_integration/check_execution_status?execution_id=<id>`
 
-- Extraction list/count are consistent for same filters.
-- Sorting and pagination are deterministic.
-- Empty, loading, and failure states remain usable.
-- Changed DTOs/models/services are all type-safe and aligned.
+```bash
+curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_execution_status?execution_id=<execution_id>"
+```
 
+## Preview merged parent/child config
+
+`POST /air8_integration/preview_merged_config`
+
+Requires `parent_config_id` and `child_config_id`.
+
+```bash
+curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/preview_merged_config" \
+  -H "Content-Type: application/json" \
+  -d '{"parent_config_id":"<id>","child_config_id":"<id>"}'
+```
+
+## Quality bar
+
+- Reuse known `execution_id` when correlating uploads, extraction, downstream export, or search.
+- Prefer OpenAPI-required fields explicitly set; omitting optional flags still applies server defaults documented in schemas.

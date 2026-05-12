@@ -1,33 +1,59 @@
 ---
 name: docagent-config-agent
-description: "Build and debug DocuAgent config-agent experiences, including chat/streaming UI, configuration payloads, and backend config integrations. Use when requests mention config-agent route, config chatbot components, streaming output behavior, prompt/config field editing, or configuration API wiring."
+description: Operates Agents API ConfigAgent routes—streaming chat, thread/dialog/message reads, async global-config jobs, shipment mapping, payment Excel processing, embeddings, PDF merge and prepare-upload—using X-API-Key where OpenAPI requires it. Use for /config_integration/* integrations.
 ---
 
-# Docagent Config Agent
+# DocuAgent config agent (`/config_integration/*`)
 
-## Primary Frontend Areas
+**Auth:** Send `X-API-Key: $DOCAGENT_AGENTS_API_KEY` on every operation listed below (OpenAPI `APIKeyHeader`).
 
-- `frontend/app/(routes)/config-agent`
-- `frontend/app/components/configAgentChatbot`
-- Theme/layout files that impact config-agent readability
+Base URL: `$DOCAGENT_AGENTS_API_BASE_URL`.
 
-## Primary Backend Areas
+## Chat / dialogs
 
-- `backend/llm-config-service/src/**` for configuration persistence and integration
-- `backend/llm-chat-service/src/**` or external agent integration paths when streaming/chat is involved
+| Method | Path | Notes |
+|--------|------|--------|
+| POST | `/config_integration/config-agent-stream` | Body: `ExecutionAgentRequest` (`message`, `thread_id`, optional `user_id`, `token_id`, `image_urls`, `message_id`) |
+| GET | `/config_integration/fetch-dialog/{thread_id}` | Full dialog |
+| GET | `/config_integration/fetch-message/{thread_id}/{message_id}` | Single message |
+| GET | `/config_integration/fetch-threads/{user_id}` | Query: `limit`, `skip` |
 
-## Workflow
+```bash
+curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-agent-stream" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
+  -d '{"message":"...","thread_id":"<uuid>","user_id":"<optional>"}'
+```
 
-1. Identify if issue is transport (streaming/API), contract (DTO), or presentation (UI state).
-2. Validate request/response shape and streaming event format first.
-3. Update frontend message/render pipeline to handle loading/chunk/complete/error explicitly.
-4. Align configuration forms and payload schema with backend expectations.
-5. Validate UX clarity: fewer controls, clear hierarchy, calm states, minimal noise.
+## Global config generation (async)
 
-## Non-Negotiables
+- POST `/config_integration/generate-global-config` → `202`, body includes `job_id`, `status`
+- GET `/config_integration/config-job/{job_id}` — poll until `completed` or `failed`; `config` when completed
 
-- Never hide broken streaming with fake delayed UI updates.
-- Keep config-agent interactions deterministic and inspectable.
-- Preserve strong typing between frontend models and backend DTOs.
-- Maintain accessible keyboard navigation and readable error feedback.
+Body for generate: `GenerateGlobalConfigRequest` (`max_attempts` optional, default 3).
 
+## Spreadsheet / domain helpers
+
+- POST `/config_integration/run-shipment-mapping`
+- POST `/config_integration/run-shipment-mapping-and-merge`
+- POST `/config_integration/process-application-payment-excel`
+
+Bodies: `ShipmentMappingRequest`, `ShipmentMappingRequest`, `ProcessApplicationPaymentRequest` respectively.
+
+## Embeddings jobs
+
+- POST `/config_integration/run-shipment-code-embeddings`
+- GET `/config_integration/shipment-code-embeddings-status/{job_id}`
+- POST `/config_integration/run-invoice-code-embeddings`
+- GET `/config_integration/invoice-code-embeddings-status/{job_id}`
+
+Poll status until `completed`/`failed`/terminal per response schema.
+
+## Multipart uploads (detail in `docagent-file-prep`)
+
+- POST `/config_integration/prepare-and-upload`
+- POST `/config_integration/merge-pdf`
+
+Use OpenAPI multipart field names (`execution_id`, optional `files`, optional `base64_inputs`).
+
+**Do not duplicate** multipart recipes here — see `docagent-file-prep` for curl `-F` examples.

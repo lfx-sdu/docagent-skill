@@ -1,34 +1,40 @@
 ---
 name: docagent-export-results
-description: "Handle DocuAgent export-data execution and export result surfaces across backend and frontend. Use when requests involve export execution list/count/filter logic, export status transitions, export result cards, or download/export workflow issues."
+description: Exports extraction-related outputs via Agents API—Air8 export_data_to_blob and ConfigAgent export-extraction-excel (X-API-Key). Use when users need downloadable blob export from records or extraction Excel URLs.
 ---
 
-# Docagent Export Results
+# DocuAgent export results (Agents API)
 
-## Primary Backend Areas
+## Export dataframe / records to blob (Air8)
 
-- `backend/llm-execution-service/src/sdu-export-data-execution/business/services`
-- `backend/llm-execution-service/src/sdu-export-data-execution/controller`
-- Related DTOs and query handlers for list/count operations
+`POST /air8_integration/export_data_to_blob`
 
-## Primary Frontend Areas
+OpenAPI schemas: `DataframeExporterRequest`, `DataframeExporterResponse`.
 
-- `frontend/app/components/documentExportResultsCard`
-- `frontend/app/components/documentExportResultsCard/documentExportResultsListCard`
-- Shared `results` models/services
+Required: `records_to_export` (map order_id → doc_type), `output_format` (`xlsx`|`csv`|`json`|`tex`|`pkl`|`parquet`), `execution_id`, `created_by`.
 
-## Workflow
+```bash
+curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/export_data_to_blob" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "records_to_export": {"order-id-1":"invoice"},
+    "output_format":"xlsx",
+    "execution_id":"<execution-id>",
+    "created_by":"<user-or-service>"
+  }'
+```
 
-1. Validate export execution lifecycle states and transitions.
-2. Align list and count query logic for same filter set.
-3. Validate export payload fields needed by UI (file name, status, timestamps, actor).
-4. Keep download/export actions idempotent and user-safe.
-5. Ensure cards communicate pending/failed/completed states clearly.
+## Export extraction Excel (ConfigAgent — API key)
 
-## High-Risk Bugs
+`POST /config_integration/export-extraction-excel`
 
-- Count endpoint ignoring status filter.
-- Frontend assuming downloadable file before export completes.
-- Timestamp formatting mismatch causing sort instability.
-- Retry actions duplicating exports without explicit intent.
+Schemas: `ExportExtractionExcelRequest`, `ExportExtractionExcelResponse`. Requires `X-API-Key`.
 
+```bash
+curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/export-extraction-excel" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
+  -d '{"execution_id":"<execution-id>","created_by":"<user-or-service>"}'
+```
+
+Response includes `url` for download when successful.

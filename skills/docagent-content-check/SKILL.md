@@ -1,38 +1,41 @@
 ---
 name: docagent-content-check
-description: "Implement and troubleshoot DocuAgent content-check execution behavior across backend check-content modules and frontend content-checking result cards. Use when requests involve check execution list/count, check statuses, content-check filters, or `/content-checking` result rendering."
+description: Calls Agents API Air8 content checking—POST check_doc_content and poll execution status. Use when users mention document checker rules, checker_config_id, order_id doc checks, or /air8_integration/check_doc_content.
 ---
 
-# Docagent Content Check
+# DocuAgent content check (Air8 API)
 
-## Primary Backend Areas
+Base: `$DOCAGENT_AGENTS_API_BASE_URL`.
 
-- `backend/llm-execution-service/src/sdu-check-content-execution/business/queries`
-- `backend/llm-execution-service/src/sdu-check-content-execution/business/services`
-- `backend/llm-execution-service/src/sdu-check-content-execution/controller`
+OpenAPI schemas: `DocumentCheckerRequest`, `DocumentCheckerResponse`, `ExecutionStatusResponse`.
 
-## Primary Frontend Areas
+## Start content check
 
-- `frontend/app/components/contentCheckingResultsCard`
-- `frontend/app/components/contentCheckingResultsCard/contentCheckingResultsListCard`
-- Shared `results` models/services
+`POST /air8_integration/check_doc_content`
 
-## Workflow
+Required: `order_id` (string or array of strings), `doc_types_to_check` (array).
 
-1. Reproduce check-content list/count discrepancy or rendering issue.
-2. Inspect controller DTO and defaults first.
-3. Compare list query filters with count query filters.
-4. Verify service-level status transformations and derived flags.
-5. Align frontend types and card rendering states with API response.
+Optional: `external_data`, `checker_config_id`, `rules`, `execution_id`, `created_by`.
 
-## Quality Gates
+```bash
+curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_doc_content" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "order_id":"<order-id>",
+    "doc_types_to_check":["invoice"],
+    "execution_id":"<optional>",
+    "created_by":"<optional>"
+  }'
+```
 
-- Count endpoint and list endpoint return consistent totals.
-- Filter combinations do not break pagination.
-- Status badges and summary labels reflect true backend state.
-- Empty/failed checks render clear, non-blocking UI states.
+Returns `execution_id` and `status`.
 
-## Root-Cause Bias
+## Poll status
 
-Never stop at cosmetic fixes in cards when mismatch originates in query logic, DTO defaults, or backend status mapping.
+`GET /air8_integration/check_execution_status?execution_id=<execution_id>`
 
+```bash
+curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_execution_status?execution_id=<execution_id>"
+```
+
+Reuse the same backoff guidance as extraction (`docagent-platform` skill).

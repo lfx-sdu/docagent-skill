@@ -1,40 +1,50 @@
 ---
 name: docagent-results
-description: "Maintain DocuAgent result retrieval flows and shared contracts across extraction, content-checking, and export result pages/cards. Use when users ask to fetch results, fix list/count mismatches, adjust filtering/sorting/pagination, or update shared result models/services."
+description: Cross-cutting retrieval and polling patterns for Agents API—Air8 execution_id status, LFSearch GET by search_id, ConfigAgent threads/messages/jobs/embeddings statuses. Use when correlating IDs across extraction, search, config, or NER tasks.
 ---
 
-# Docagent Results
+# DocuAgent results (IDs & GET patterns)
 
-## Core Contract Files
+Everything here is **GET** unless noted. Compose URLs with `$DOCAGENT_AGENTS_API_BASE_URL`.
 
-- `frontend/app/models/results/index.ts`
-- `frontend/app/services/results/index.ts`
-- `frontend/app/models/admin/index.ts`
+## Air8 — execution lifecycle
 
-## Result Surfaces
+Poll any Air8-backed async job using:
 
-- Extraction result cards and hooks
-- Content checking result cards and list cards
-- Export result cards and list cards
+`GET /air8_integration/check_execution_status?execution_id=<execution_id>`
 
-## Query Consistency Rules
+Company research retrieval:
 
-1. Use one canonical filter mapping across list and count endpoints.
-2. Keep date/time parsing and timezone assumptions identical between backend and frontend.
-3. Keep page size, offset/page index, and sort fields aligned.
-4. Ensure default filters produce identical totals across tabs/cards.
+`GET /air8_integration/get_company_info_and_news_by_id?execution_id=<execution_id>`
 
-## Change Procedure
+(Starting research is POST — see `docagent-company-research`.)
 
-1. Define expected API request/response shape.
-2. Update backend DTO/query/service first if contract is wrong.
-3. Update frontend model + service mapping next.
-4. Update list/card hooks and render components last.
-5. Validate that list length and "total" stay in sync for same query.
+## LFSearch — fetch by `search_id`
 
-## Anti-Patterns
+Replace `{kind}` with `product_search`, `supplier_search`, `buyer_search`, or `factory_search`.
 
-- Fixing only UI with temporary mapping while backend remains inconsistent.
-- Duplicating separate filter mappers per component.
-- Silent fallback conversions that hide contract breakage.
+| GET | `/search_integration/{kind}/{search_id}` | Result payload |
+| GET | `/search_integration/{kind}_execution/{search_id}` | Execution record |
 
+**DELETE** `/search_integration/{kind}/{search_id}` — destructive; confirm with user before calling.
+
+## ConfigAgent — requires `X-API-Key`
+
+| GET | `/config_integration/fetch-dialog/{thread_id}` |
+| GET | `/config_integration/fetch-message/{thread_id}/{message_id}` |
+| GET | `/config_integration/fetch-threads/{user_id}?limit=&skip=` |
+| GET | `/config_integration/config-job/{job_id}` |
+| GET | `/config_integration/shipment-code-embeddings-status/{job_id}` |
+| GET | `/config_integration/invoice-code-embeddings-status/{job_id}` |
+
+## NER pipelines — poll task status
+
+| GET | `/ner_integration/ner/entity-pipeline/status/{task_id}` |
+| GET | `/ner_integration/ner/entity-pipeline/tasks?status=&limit=` |
+| GET | `/ner_integration/ner/product-pipeline/status/{task_id}` |
+| GET | `/ner_integration/ner/product-pipeline/tasks?status=&limit=` |
+
+## Practices
+
+- Pass through **`execution_id`**, **`search_id`**, **`thread_id`**, **`job_id`**, **`task_id`** from POST responses verbatim.
+- For list endpoints with `limit`/`skip`, keep pagination deterministic when scraping all pages.

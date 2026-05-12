@@ -1,39 +1,65 @@
 ---
 name: docagent-platform
-description: "Route DocuAgent platform requests to the correct domain workflow: extraction, results retrieval, content checking, config-agent, export results, and admin KPI operations. Use when users ask to implement, debug, or review behavior across DocuAgent execution services, frontend result pages/cards, or admin dashboards."
+description: Routes DocuAgent Agents API work by OpenAPI tag and user intent. Use when choosing which skill applies, setting base URL and auth (X-API-Key for ConfigAgent), polling async jobs, or staying endpoint-first against https://api.uat.t4s.lfxdigital.app/agents/v1.
 ---
 
-# Docagent Platform
+# DocuAgent platform (Agents API router)
 
-## Goal
+## Canonical base URL
 
-Handle DocuAgent platform work by selecting the correct domain skill first, then applying that skill's workflow deeply enough to fix root causes instead of shipping workarounds.
+- Set `DOCAGENT_AGENTS_API_BASE_URL` (UAT: `https://api.uat.t4s.lfxdigital.app/agents/v1`).
+- All paths below are relative to that base.
+- Discover the full contract: `GET /openapi.json` or [Swagger UI](https://api.uat.t4s.lfxdigital.app/agents/v1/docs).
 
-## Domain Router
+## Auth
 
-Use this decision tree:
+- **`/config_integration/*`**: OpenAPI marks these with `APIKeyHeader`; send `X-API-Key: $DOCAGENT_AGENTS_API_KEY`.
+- **Other groups** (`/air8_integration/*`, `/search_integration/*`, `/ner_integration/*`): follow your deployment; OpenAPI may omit `security`. Do not invent headers—use what your environment requires.
 
-1. If request mentions extraction execution, extraction list/count, extraction cards, or document extraction result screens -> use `docagent-extraction`.
-2. If request mentions result retrieval APIs, list/count mismatches, pagination/filters, or shared result models/services -> use `docagent-results`.
-3. If request mentions check content execution, content checking page/cards, check list/count, or check statuses -> use `docagent-content-check`.
-4. If request mentions config-agent, config chat, streaming responses, prompt/configuration UX, or config-related service integration -> use `docagent-config-agent`.
-5. If request mentions export data execution, export result cards, download/export statuses, or export list/count -> use `docagent-export-results`.
-6. If request mentions admin KPI page, token usage users, admin jobs, or cross-platform admin analytics -> use `docagent-admin-kpis`.
+## Preflight
 
-If multiple areas are involved, choose a primary domain and run a secondary pass for cross-module consistency.
+```bash
+curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/health"
+```
 
-## Execution Rules
+## Decision tree (pick domain skill)
 
-1. Confirm scope from changed files and affected routes/components.
-2. Trace backend query/service/controller flow before changing UI behavior.
-3. Keep DTO, query handler, service, model, and frontend contract aligned.
-4. Verify list/count/filter/sort semantics stay consistent between backend and frontend.
-5. Prefer explicit fixes for root cause over compatibility hacks.
+1. **Extract / validate documents** (`POST .../validate_and_extract_docs`, execution status) → `docagent-extraction`.
+2. **Content checks / rules** (`POST .../check_doc_content`) → `docagent-content-check`.
+3. **Export dataframe to blob OR extraction Excel URL** (`export_data_to_blob`, `export-extraction-excel`) → `docagent-export-results`.
+4. **Config chat, uploads, shipment mapping, embeddings, global config jobs** → `docagent-config-agent`. Multipart uploads / PDF merge → `docagent-file-prep` (focused recipes).
+5. **Poll generic `execution_id`** across Air8 flows → `docagent-results`.
+6. **Company research reports** (`search_company_info_and_news`, `get_company_info_and_news_by_id`) → `docagent-company-research`.
+7. **Supplier/buyer/factory/product search** (`/search_integration/*`) → `docagent-search`.
+8. **NER trace / suggest / pipelines** (`/ner_integration/*`) → `docagent-ner`.
+9. **Service health / memory diagnostics only** (`/`, `/health`, `/memory`) → `docagent-admin-kpis`.
 
-## Validation Checklist
+## Request discipline
 
-- Run focused lint/test commands for touched services or frontend modules.
-- Verify no DTO or model drift between backend payload and frontend typings.
-- Re-check affected pages/cards for empty, loading, and error states.
-- Report what changed, why it fixes root cause, and what was validated.
+- Prefer **`curl`** or the user’s HTTP client with explicit JSON bodies from `openapi.json` component schemas.
+- For **multipart** endpoints, use `-F` / client multipart APIs; never guess field names—read OpenAPI `multipart/form-data` schema.
+- On **`422 Validation Error`**, read `detail` and fix the body before retrying.
 
+## Async patterns
+
+- **Air8**: responses include `execution_id` and `status`; poll `GET /air8_integration/check_execution_status?execution_id=...`.
+- **Config generation**: `POST /config_integration/generate-global-config` returns `job_id`; poll `GET /config_integration/config-job/{job_id}` until terminal status.
+- **Embeddings**: start endpoints return `job_id`; poll `.../shipment-code-embeddings-status/{job_id}` or `.../invoice-code-embeddings-status/{job_id}`.
+- **NER pipelines**: start returns `task_id`; poll `.../entity-pipeline/status/{task_id}` or `.../product-pipeline/status/{task_id}`.
+
+Backoff: start at 1–2s, cap around 10–15s, stop after a reasonable wall-clock budget or when status is failed.
+
+## Safety
+
+- **DELETE** on `/search_integration/*/{search_id}` removes data in backing stores per OpenAPI descriptions. Only call with explicit user confirmation.
+- Do not log API keys or full document payloads in chat transcripts.
+
+## Endpoint coverage map (all 57 paths)
+
+| Group | Skill(s) |
+|-------|----------|
+| Health `/`, `/health`, `/memory` | `docagent-admin-kpis` |
+| `Air8` | `docagent-extraction`, `docagent-content-check`, `docagent-export-results`, `docagent-company-research`, `docagent-results` (status) |
+| `ConfigAgent` | `docagent-config-agent`, `docagent-export-results` (Excel), `docagent-file-prep` |
+| `LFSearch` | `docagent-search`, `docagent-results` (GET by id) |
+| `NER` | `docagent-ner` |

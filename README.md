@@ -11,7 +11,7 @@ Markdown skill packs for the DocuAgent **Agents API** (`/agents/v1`). They teach
 | Step | What to do |
 |------|------------|
 | 1 | [Install skills](#install) into your agent (Cursor, Copilot, Claude Code, …) via the Skills CLI, **or** clone this repo if your workflow is file-based. |
-| 2 | Set [environment variables](#prerequisites) so the agent knows the API base URL and (when needed) the ConfigAgent API key. |
+| 2 | Set [environment variables](#prerequisites). Base URL can default to UAT; API key is needed for ConfigAgent routes. |
 | 3 | Follow **[USERFLOW.md](USERFLOW.md)** for end-to-end requests: extraction → polling → ConfigAgent → results. |
 
 **This repo** = skill text under `skills/*/SKILL.md`.  
@@ -28,7 +28,7 @@ Markdown skill packs for the DocuAgent **Agents API** (`/agents/v1`). They teach
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `DOCAGENT_AGENTS_API_BASE_URL` | Yes | API root, e.g. `https://api.uat.t4s.lfxdigital.app/agents/v1` |
+| `DOCAGENT_AGENTS_API_BASE_URL` | Optional | API root. If unset, use default `https://api.uat.t4s.lfxdigital.app/agents/v1` |
 | `DOCAGENT_AGENTS_API_KEY` | For ConfigAgent | Sent as `X-API-Key` on `/config_integration/*` where applicable |
 
 Optional (only if another surface still uses Azure AD client credentials):
@@ -43,6 +43,7 @@ Optional (only if another surface still uses Azure AD client credentials):
 ### Preflight (read-only)
 
 ```bash
+DOCAGENT_AGENTS_API_BASE_URL="${DOCAGENT_AGENTS_API_BASE_URL:-https://api.uat.t4s.lfxdigital.app/agents/v1}"
 curl -sS -o /dev/null -w "%{http_code}\n" \
   "$DOCAGENT_AGENTS_API_BASE_URL/health"
 ```
@@ -52,6 +53,7 @@ Expect `200` when the service is healthy.
 ### ConfigAgent preflight (when using `DOCAGENT_AGENTS_API_KEY`)
 
 ```bash
+DOCAGENT_AGENTS_API_BASE_URL="${DOCAGENT_AGENTS_API_BASE_URL:-https://api.uat.t4s.lfxdigital.app/agents/v1}"
 curl -sS -o /dev/null -w "%{http_code}\n" \
   -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
   "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/fetch-threads/<user_id>?limit=1&skip=0"
@@ -103,6 +105,8 @@ curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-agent-
 
 Use the [Vercel Skills CLI](https://vercel.com/docs/agent-resources/skills). Discoverability: [skills.sh](https://skills.sh).
 
+Yes, **`npx` install is supported now**. This is the recommended onboarding path.
+
 ### Default: install all skills
 
 ```bash
@@ -110,6 +114,16 @@ npx skills add lfx-sdu/docagent-skill
 ```
 
 Installs every skill from the default branch of [lfx-sdu/docagent-skill](https://github.com/lfx-sdu/docagent-skill). After install, configure [Prerequisites](#prerequisites); the CLI does not inject your API secrets.
+
+### Fast setup (only API key required for ConfigAgent)
+
+```bash
+npx skills add lfx-sdu/docagent-skill
+export DOCAGENT_AGENTS_API_KEY="<config-agent-api-key>"
+export DOCAGENT_AGENTS_API_BASE_URL="${DOCAGENT_AGENTS_API_BASE_URL:-https://api.uat.t4s.lfxdigital.app/agents/v1}"
+```
+
+If you only use Air8 endpoints that do not require API key auth, you can skip `DOCAGENT_AGENTS_API_KEY`.
 
 ### Optional: only some skills
 

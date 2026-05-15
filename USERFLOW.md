@@ -8,13 +8,16 @@ This file shows the practical flow to:
 ## 1) Setup once
 
 ```bash
-export DOCAGENT_AGENTS_API_BASE_URL="https://api.uat.t4s.lfxdigital.app/agents/v1"
 export DOCAGENT_AGENTS_API_KEY="<config-agent-api-key>"
+export DOCAGENT_AGENTS_API_BASE_URL="${DOCAGENT_AGENTS_API_BASE_URL:-https://api.uat.t4s.lfxdigital.app/agents/v1}"
 ```
+
+If you skip setting `DOCAGENT_AGENTS_API_BASE_URL`, examples below still work by using the same UAT default expression.
 
 Health check:
 
 ```bash
+DOCAGENT_AGENTS_API_BASE_URL="${DOCAGENT_AGENTS_API_BASE_URL:-https://api.uat.t4s.lfxdigital.app/agents/v1}"
 curl -sS -o /dev/null -w "%{http_code}\n" \
   "$DOCAGENT_AGENTS_API_BASE_URL/health"
 ```
@@ -22,6 +25,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" \
 ConfigAgent auth check:
 
 ```bash
+DOCAGENT_AGENTS_API_BASE_URL="${DOCAGENT_AGENTS_API_BASE_URL:-https://api.uat.t4s.lfxdigital.app/agents/v1}"
 curl -sS -o /dev/null -w "%{http_code}\n" \
   -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
   "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/fetch-threads/<user_id>?limit=1&skip=0"

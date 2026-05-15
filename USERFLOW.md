@@ -1,6 +1,6 @@
 # USERFLOW - DocuAgent Skills API
 
-**LFX SDU — DocuAgent.** All **HTTP examples** use the default Agents API root `https://api.uat.t4s.lfxdigital.app/agents/v1`. **Do not** ask users to configure `DOCAGENT_AGENTS_API_BASE_URL` for onboarding—only **`DOCAGENT_AGENTS_API_KEY`** where ConfigAgent is used. Use **`openapi.json` / Swagger** as the source of truth for path prefixes under that root.
+**LFX SDU — DocuAgent.** All **HTTP examples** use the default Agents API root `https://api.uat.t4s.lfxdigital.app/agents/v1`. **Do not** ask users to configure `DOCAGENT_AGENTS_API_BASE_URL` for onboarding—only **`DOCAGENT_AGENTS_API_KEY`** where ConfigAgent is used. Use **`openapi.json` / Swagger** as the source of truth for path prefixes under that root. **Open API in the browser:** [Swagger UI](https://api.uat.t4s.lfxdigital.app/agents/v1/docs)—that URL is not the base for `curl`.
 
 This file shows the practical flow to:
 - send correct payloads,

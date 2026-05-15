@@ -8,6 +8,8 @@ Markdown skill packs for the DocuAgent **Agents API** (`/agents/v1`) from **LFX 
 
 **Default Agents API root in all examples:** `https://api.uat.t4s.lfxdigital.app/agents/v1` (LFX SDU UAT). **Do not** ask users to configure `DOCAGENT_AGENTS_API_BASE_URL` or to derive `https://<host>/agents/v1` for standard onboarding.
 
+**Swagger UI (humans, browser only):** [https://api.uat.t4s.lfxdigital.app/agents/v1/docs](https://api.uat.t4s.lfxdigital.app/agents/v1/docs). Do **not** append `/docs` to `curl` URLs—call paths like `/health`, `/openapi.json`, and `/config_integration/...` under the root above.
+
 ---
 
 ## Start here

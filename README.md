@@ -82,19 +82,40 @@ curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-agent-
 
 ## Install
 
+**Team repo (canonical):** [`lfx-sdu/docagent-skill`](https://github.com/lfx-sdu/docagent-skill)
+
 ```bash
 # install all skills from this repo
-npx skills add erictaicp/docagent-skills
+npx skills add lfx-sdu/docagent-skill
 
 # install selected skills
-npx skills add erictaicp/docagent-skills --skill docagent-platform --skill docagent-extraction
+npx skills add lfx-sdu/docagent-skill --skill docagent-platform --skill docagent-extraction
 
 # install globally for your machine
-npx skills add erictaicp/docagent-skills -g
+npx skills add lfx-sdu/docagent-skill -g
 
 # install to specific agents
-npx skills add erictaicp/docagent-skills -a cursor -a codex -a claude-code
+npx skills add lfx-sdu/docagent-skill -a cursor -a codex -a claude-code
 ```
+
+Optional fork for experiments: [`erictaicp/docagent-skills`](https://github.com/erictaicp/docagent-skills) — same `npx skills add erictaicp/docagent-skills` pattern as above.
+
+### Maintainers (Git remotes)
+
+This clone can keep **two** remotes:
+
+| Remote | URL | Use |
+|--------|-----|-----|
+| `lfx` | `https://github.com/lfx-sdu/docagent-skill.git` | Team canonical; `git push lfx main` |
+| `origin` | `https://github.com/erictaicp/docagent-skills.git` | Personal fork; `git push origin main` when you want it in sync |
+
+```bash
+git remote add lfx https://github.com/lfx-sdu/docagent-skill.git   # once, if missing
+git push -u lfx main
+git push origin main    # optional: update fork
+```
+
+Teammates only need the team URL and `npx skills add lfx-sdu/docagent-skill` (see [Vercel Agent Skills](https://vercel.com/docs/agent-resources/skills)).
 
 ### Scaffold a new skill (any project)
 

@@ -15,6 +15,12 @@ Schemas: `$DOCAGENT_AGENTS_API_BASE_URL/openapi.json` (`DocsValidationRequest`, 
 
 Body fields (minimum from OpenAPI): `file_uri`, `order_id`, `nation`, `possible_doc_type` (array). Optional includes `execution_id`, `created_by`, `field_config_id`, `parent_config_id`, preprocessing flags (`enable_image_preprocessing`, `rotate_upright`, …), `external_context`, `prompt_template_id`, etc.
 
+Payload checklist before sending:
+- `possible_doc_type` must be an array (for example `["invoice"]`).
+- `file_uri` must be an accessible URI for the backend runtime.
+- Keep `order_id` stable if you need deterministic traceability.
+- Pass `execution_id` only when intentionally correlating with an existing run.
+
 ```bash
 curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/validate_and_extract_docs" \
   -H "Content-Type: application/json" \
@@ -36,6 +42,17 @@ Response (typical): `execution_id`, `status`. Poll until terminal.
 
 ```bash
 curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_execution_status?execution_id=<execution_id>"
+```
+
+Simple polling pattern:
+
+```bash
+while true; do
+  response="$(curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_execution_status?execution_id=<execution_id>")"
+  echo "$response"
+  echo "$response" | rg '"status":"(completed|failed)"' >/dev/null && break
+  sleep 3
+done
 ```
 
 ## Preview merged parent/child config

@@ -25,12 +25,22 @@ curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-agent-
   -d '{"message":"...","thread_id":"<uuid>","user_id":"<optional>"}'
 ```
 
+Payload checklist:
+- `thread_id` should be a stable UUID for conversation continuity.
+- `message` must be non-empty plain text.
+- Include `user_id` when you need deterministic thread listing via `fetch-threads/{user_id}`.
+
 ## Global config generation (async)
 
 - POST `/config_integration/generate-global-config` → `202`, body includes `job_id`, `status`
 - GET `/config_integration/config-job/{job_id}` — poll until `completed` or `failed`; `config` when completed
 
 Body for generate: `GenerateGlobalConfigRequest` (`max_attempts` optional, default 3).
+
+Result retrieval:
+- Use `job_id` from the `202` response.
+- Poll `config-job/{job_id}` until terminal status.
+- Read generated config from `config` field on completion.
 
 ## Spreadsheet / domain helpers
 
@@ -48,6 +58,12 @@ Bodies: `ShipmentMappingRequest`, `ShipmentMappingRequest`, `ProcessApplicationP
 - GET `/config_integration/invoice-code-embeddings-status/{job_id}`
 
 Poll status until `completed`/`failed`/terminal per response schema.
+
+## Result reads (GET)
+
+- `GET /config_integration/fetch-dialog/{thread_id}` - full chat result.
+- `GET /config_integration/fetch-message/{thread_id}/{message_id}` - one message.
+- `GET /config_integration/fetch-threads/{user_id}?limit=&skip=` - thread listing.
 
 ## Multipart uploads (detail in `docagent-file-prep`)
 

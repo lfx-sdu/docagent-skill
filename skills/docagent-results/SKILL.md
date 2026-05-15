@@ -48,3 +48,27 @@ Replace `{kind}` with `product_search`, `supplier_search`, `buyer_search`, or `f
 
 - Pass through **`execution_id`**, **`search_id`**, **`thread_id`**, **`job_id`**, **`task_id`** from POST responses verbatim.
 - For list endpoints with `limit`/`skip`, keep pagination deterministic when scraping all pages.
+
+## Quick retrieval recipes
+
+Extraction status:
+
+```bash
+curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_execution_status?execution_id=<execution_id>"
+```
+
+ConfigAgent dialog:
+
+```bash
+curl -sS \
+  -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
+  "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/fetch-dialog/<thread_id>"
+```
+
+ConfigAgent async job:
+
+```bash
+curl -sS \
+  -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
+  "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-job/<job_id>"
+```

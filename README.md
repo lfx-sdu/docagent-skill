@@ -42,6 +42,44 @@ curl -sS -o /dev/null -w "%{http_code}\n" \
 
 Adjust `<user_id>` to a valid id for your tenant.
 
+## API usage quickstart (payload-first)
+
+Use this order when integrating:
+
+1. Validate environment (`/health`, API key preflight).
+2. Start extraction with a valid `DocsValidationRequest` payload.
+3. Poll `execution_id` until terminal status.
+4. If needed, run ConfigAgent flow (`config-agent-stream` or async config job).
+5. Fetch outputs via result endpoints (`check_execution_status`, dialog/message/job GETs).
+
+For complete request/response recipes, see `USERFLOW.md`.
+
+### Extraction minimal payload
+
+```bash
+curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/validate_and_extract_docs" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_uri":"https://<storage>/<file>.pdf",
+    "order_id":"ORDER-123",
+    "nation":"VN",
+    "possible_doc_type":["invoice"]
+  }'
+```
+
+### ConfigAgent chat payload (requires API key)
+
+```bash
+curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-agent-stream" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
+  -d '{
+    "message":"Create extraction config for invoice + packing list",
+    "thread_id":"<uuid>",
+    "user_id":"<optional>"
+  }'
+```
+
 ## Install
 
 ```bash
@@ -56,6 +94,16 @@ npx skills add erictaicp/docagent-skills -g
 
 # install to specific agents
 npx skills add erictaicp/docagent-skills -a cursor -a codex -a claude-code
+```
+
+### Scaffold a new skill (any project)
+
+```bash
+# SKILL.md in the current directory
+npx skills init
+
+# New skill folder: my-skill/SKILL.md
+npx skills init my-skill
 ```
 
 ## Included skills

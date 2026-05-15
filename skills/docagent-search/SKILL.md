@@ -5,7 +5,7 @@ description: Operates LFSearch Agents API—supplier,buyer,factory,product searc
 
 # DocuAgent LF Search (`/search_integration/*`)
 
-Base: `$DOCAGENT_AGENTS_API_BASE_URL`. Schemas: `SearchRequest`, `NewSearchRequest`, `SearchResponse`.
+Base: `https://api.uat.t4s.lfxdigital.app/agents/v1`. Schemas: `SearchRequest`, `NewSearchRequest`, `SearchResponse`.
 
 ## Start searches
 
@@ -23,13 +23,13 @@ Base: `$DOCAGENT_AGENTS_API_BASE_URL`. Schemas: `SearchRequest`, `NewSearchReque
 `SearchRequest` fields include `execution_id`, optional `created_by`, optional `query`, optional `image` (legacy single image).
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/search_integration/supplier_search" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/search_integration/supplier_search" \
   -H "Content-Type: application/json" \
   -d '{"execution_id":"<execution-id>","created_by":"<user>","query":"<text>","image":"<url-or-path-or-base64>"}'
 ```
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/search_integration/product_search" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/search_integration/product_search" \
   -H "Content-Type: application/json" \
   -d '{"execution_id":"<execution-id>","created_by":"<user>","query":"<text>","images":["<uri1>"]}'
 ```
@@ -48,7 +48,7 @@ Responses include `execution_id` and `status`. For retrieval routes below, subst
 Example:
 
 ```bash
-curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/search_integration/supplier_search/<search_id>"
+curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/search_integration/supplier_search/<search_id>"
 ```
 
 ## Deletes (destructive)
@@ -56,7 +56,7 @@ curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/search_integration/supplier_search/<sear
 Only with explicit confirmation:
 
 ```bash
-curl -sS -X DELETE "$DOCAGENT_AGENTS_API_BASE_URL/search_integration/product_search/<search_id>"
+curl -sS -X DELETE "https://api.uat.t4s.lfxdigital.app/agents/v1/search_integration/product_search/<search_id>"
 ```
 
 Same pattern for supplier, buyer, factory path segments.

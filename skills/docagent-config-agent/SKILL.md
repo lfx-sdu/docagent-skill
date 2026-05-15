@@ -7,7 +7,7 @@ description: Operates Agents API ConfigAgent routes—streaming chat, thread/dia
 
 **Auth:** Send `X-API-Key: $DOCAGENT_AGENTS_API_KEY` on every operation listed below (OpenAPI `APIKeyHeader`).
 
-Base URL: `$DOCAGENT_AGENTS_API_BASE_URL`.
+Base URL: `https://api.uat.t4s.lfxdigital.app/agents/v1`.
 
 ## Chat / dialogs
 
@@ -19,7 +19,7 @@ Base URL: `$DOCAGENT_AGENTS_API_BASE_URL`.
 | GET | `/config_integration/fetch-threads/{user_id}` | Query: `limit`, `skip` |
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-agent-stream" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/config_integration/config-agent-stream" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
   -d '{"message":"...","thread_id":"<uuid>","user_id":"<optional>"}'

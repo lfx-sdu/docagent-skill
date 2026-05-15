@@ -1,14 +1,14 @@
 ---
 name: docagent-platform
-description: Routes DocuAgent Agents API work by OpenAPI tag and user intent. Use when choosing which skill applies, setting base URL and auth (X-API-Key for ConfigAgent), polling async jobs, or staying endpoint-first against https://api.uat.t4s.lfxdigital.app/agents/v1.
+description: Routes DocuAgent Agents API work by OpenAPI tag and user intent. Use when choosing which skill applies, auth (X-API-Key for ConfigAgent), polling async jobs, or staying endpoint-first against https://api.uat.t4s.lfxdigital.app/agents/v1.
 ---
 
 # DocuAgent platform (Agents API router)
 
-## Canonical base URL
+## Default API root (LFX SDU DocuAgent)
 
-- Set `DOCAGENT_AGENTS_API_BASE_URL` (UAT: `https://api.uat.t4s.lfxdigital.app/agents/v1`).
-- All paths below are relative to that base.
+- **Onboarding:** do **not** require `DOCAGENT_AGENTS_API_BASE_URL` or `https://<host>/agents/v1` from end users. Examples in this repo use **`https://api.uat.t4s.lfxdigital.app/agents/v1`**.
+- All paths below are relative to that root unless your integration doc specifies another host—then **swap the hostname in URLs only** (advanced).
 - Discover the full contract: `GET /openapi.json` or [Swagger UI](https://api.uat.t4s.lfxdigital.app/agents/v1/docs).
 
 ## Auth
@@ -19,7 +19,7 @@ description: Routes DocuAgent Agents API work by OpenAPI tag and user intent. Us
 ## Preflight
 
 ```bash
-curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/health"
+curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/health"
 ```
 
 ## Decision tree (pick domain skill)

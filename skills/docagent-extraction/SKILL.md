@@ -5,9 +5,9 @@ description: Calls DocuAgent Agents API document extraction—validate/extract d
 
 # DocuAgent extraction
 
-Base: `$DOCAGENT_AGENTS_API_BASE_URL` — paths below are appended.
+Base: `https://api.uat.t4s.lfxdigital.app/agents/v1` — paths below are appended.
 
-Schemas: `$DOCAGENT_AGENTS_API_BASE_URL/openapi.json` (`DocsValidationRequest`, `MergeConfigRequest`, …).
+Schemas: `https://api.uat.t4s.lfxdigital.app/agents/v1/openapi.json` (`DocsValidationRequest`, `MergeConfigRequest`, …).
 
 ## Start extraction / validation
 
@@ -22,7 +22,7 @@ Payload checklist before sending:
 - Pass `execution_id` only when intentionally correlating with an existing run.
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/validate_and_extract_docs" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/validate_and_extract_docs" \
   -H "Content-Type: application/json" \
   -d '{
     "file_uri":"<blob-url-or-uri>",
@@ -41,14 +41,14 @@ Response (typical): `execution_id`, `status`. Poll until terminal.
 **GET** `check_execution_status?execution_id=<id>` (same document-processing path prefix as OpenAPI).
 
 ```bash
-curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_execution_status?execution_id=<execution_id>"
+curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<execution_id>"
 ```
 
 Simple polling pattern:
 
 ```bash
 while true; do
-  response="$(curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_execution_status?execution_id=<execution_id>")"
+  response="$(curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<execution_id>")"
   echo "$response"
   echo "$response" | rg '"status":"(completed|failed)"' >/dev/null && break
   sleep 3
@@ -62,7 +62,7 @@ done
 Requires `parent_config_id` and `child_config_id`.
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/preview_merged_config" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/preview_merged_config" \
   -H "Content-Type: application/json" \
   -d '{"parent_config_id":"<id>","child_config_id":"<id>"}'
 ```

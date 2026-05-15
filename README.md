@@ -6,6 +6,8 @@ Markdown skill packs for the DocuAgent **Agents API** (`/agents/v1`) from **LFX 
 
 **Naming:** In this repository, routes for extraction, content check, export-to-blob, execution status, and related capabilities are described as **DocuAgent document processing** (LFX SDU). The **exact path prefix** on the wire is whatever your deployed `openapi.json` lists (legacy deployments may still use a historical segment in the URL); **do not** use retired codenames when talking about the product—use **DocuAgent**.
 
+**Default Agents API root in all examples:** `https://api.uat.t4s.lfxdigital.app/agents/v1` (LFX SDU UAT). **Do not** ask users to configure `DOCAGENT_AGENTS_API_BASE_URL` or to derive `https://<host>/agents/v1` for standard onboarding.
+
 ---
 
 ## Start here
@@ -13,25 +15,25 @@ Markdown skill packs for the DocuAgent **Agents API** (`/agents/v1`) from **LFX 
 | Step | What to do |
 |------|------------|
 | 1 | [Install skills](#install) into your agent (Cursor, Copilot, Claude Code, …) via the Skills CLI, **or** clone this repo if your workflow is file-based. |
-| 2 | Set [environment variables](#prerequisites). Base URL can default to UAT; API key is needed for ConfigAgent routes. |
+| 2 | For ConfigAgent calls, set **`DOCAGENT_AGENTS_API_KEY`** (see [Prerequisites](#prerequisites)). No base URL env var is required for end users. |
 | 3 | Follow **[USERFLOW.md](USERFLOW.md)** for end-to-end requests: extraction → polling → ConfigAgent → results. |
 
 **This repo** = skill text under `skills/*/SKILL.md`.  
-**Not in this repo** = your API keys, tenant URLs, or PDFs—those stay in env and your storage.
+**Not in this repo** = your API keys, document URLs, or customer data.
 
 ---
 
 ## Prerequisites
 
-- Reachable **Agents API** (example UAT host appears in examples below; use your own URL for prod).
-- **ConfigAgent** routes expect **`X-API-Key`** when your OpenAPI marks them as API-key auth.
+- **ConfigAgent** routes expect **`X-API-Key`**: use **`DOCAGENT_AGENTS_API_KEY`** in examples and agent environments.
 
-### Environment variables
+### Environment variables (onboarding)
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `DOCAGENT_AGENTS_API_BASE_URL` | Optional | API root. If unset, use default `https://api.uat.t4s.lfxdigital.app/agents/v1` |
 | `DOCAGENT_AGENTS_API_KEY` | For ConfigAgent | Sent as `X-API-Key` on `/config_integration/*` where applicable |
+
+**Advanced (integrators only):** if your stack must call a non-default Agents host, **substitute that host in HTTP examples**—do not introduce a mandatory `DOCAGENT_AGENTS_API_BASE_URL` setup step for DocuAgent end users.
 
 Optional (only if another surface still uses Azure AD client credentials):
 
@@ -40,14 +42,13 @@ Optional (only if another surface still uses Azure AD client credentials):
 ### Reference docs
 
 - Swagger UI (UAT): [https://api.uat.t4s.lfxdigital.app/agents/v1/docs](https://api.uat.t4s.lfxdigital.app/agents/v1/docs)
-- OpenAPI JSON: `GET $DOCAGENT_AGENTS_API_BASE_URL/openapi.json`
+- OpenAPI JSON: `GET https://api.uat.t4s.lfxdigital.app/agents/v1/openapi.json`
 
 ### Preflight (read-only)
 
 ```bash
-DOCAGENT_AGENTS_API_BASE_URL="${DOCAGENT_AGENTS_API_BASE_URL:-https://api.uat.t4s.lfxdigital.app/agents/v1}"
 curl -sS -o /dev/null -w "%{http_code}\n" \
-  "$DOCAGENT_AGENTS_API_BASE_URL/health"
+  "https://api.uat.t4s.lfxdigital.app/agents/v1/health"
 ```
 
 Expect `200` when the service is healthy.
@@ -55,10 +56,9 @@ Expect `200` when the service is healthy.
 ### ConfigAgent preflight (when using `DOCAGENT_AGENTS_API_KEY`)
 
 ```bash
-DOCAGENT_AGENTS_API_BASE_URL="${DOCAGENT_AGENTS_API_BASE_URL:-https://api.uat.t4s.lfxdigital.app/agents/v1}"
 curl -sS -o /dev/null -w "%{http_code}\n" \
   -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
-  "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/fetch-threads/<user_id>?limit=1&skip=0"
+  "https://api.uat.t4s.lfxdigital.app/agents/v1/config_integration/fetch-threads/<user_id>?limit=1&skip=0"
 ```
 
 Replace `<user_id>` with a valid id for your tenant.
@@ -78,7 +78,7 @@ Replace `<user_id>` with a valid id for your tenant.
 ### Extraction minimal payload
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/validate_and_extract_docs" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/validate_and_extract_docs" \
   -H "Content-Type: application/json" \
   -d '{
     "file_uri":"https://<storage>/<file>.pdf",
@@ -91,7 +91,7 @@ curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/validate_and_ex
 ### ConfigAgent chat payload (requires API key)
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-agent-stream" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/config_integration/config-agent-stream" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
   -d '{
@@ -122,7 +122,6 @@ Installs every skill from the default branch of [lfx-sdu/docagent-skill](https:/
 ```bash
 npx skills add lfx-sdu/docagent-skill
 export DOCAGENT_AGENTS_API_KEY="<config-agent-api-key>"
-export DOCAGENT_AGENTS_API_BASE_URL="${DOCAGENT_AGENTS_API_BASE_URL:-https://api.uat.t4s.lfxdigital.app/agents/v1}"
 ```
 
 If you only use **document-processing** routes that do not require API key auth, you can skip `DOCAGENT_AGENTS_API_KEY`.
@@ -155,7 +154,7 @@ Then wire `skills/<skill-name>/SKILL.md` according to your product’s “local 
 
 ### Public GitHub vs API access
 
-The skill Markdown can live in a **public** repo: it is not a substitute for tenant credentials. Real access control is **`DOCAGENT_AGENTS_API_BASE_URL`**, keys, and your network policies. Never commit `.env` or keys.
+The skill Markdown can live in a **public** repo: it is not a substitute for tenant credentials. Real access control is **API keys**, VPN/network policy, and your storage ACLs. Never commit `.env` or keys.
 
 ### Scaffold a new skill (any project)
 
@@ -170,7 +169,7 @@ npx skills init my-skill # my-skill/SKILL.md
 
 | Skill | OpenAPI tags / scope |
 |-------|---------------------|
-| `docagent-platform` | Router: pick the right skill; base URL, auth, polling, safety |
+| `docagent-platform` | Router: pick the right skill; default host in examples, auth, polling, safety |
 | `docagent-extraction` | DocuAgent document processing — validate/extract docs, execution status |
 | `docagent-content-check` | DocuAgent document processing — check doc content, execution status |
 | `docagent-export-results` | DocuAgent document processing + `ConfigAgent` — export blob, extraction Excel |

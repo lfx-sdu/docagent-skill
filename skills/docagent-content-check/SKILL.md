@@ -5,7 +5,7 @@ description: Calls DocuAgent Agents API document content checking—POST check_d
 
 # DocuAgent content check
 
-Base: `$DOCAGENT_AGENTS_API_BASE_URL`.
+Base: `https://api.uat.t4s.lfxdigital.app/agents/v1`.
 
 OpenAPI schemas: `DocumentCheckerRequest`, `DocumentCheckerResponse`, `ExecutionStatusResponse`.
 
@@ -18,7 +18,7 @@ Required: `order_id` (string or array of strings), `doc_types_to_check` (array).
 Optional: `external_data`, `checker_config_id`, `rules`, `execution_id`, `created_by`.
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_doc_content" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_doc_content" \
   -H "Content-Type: application/json" \
   -d '{
     "order_id":"<order-id>",
@@ -35,7 +35,7 @@ Returns `execution_id` and `status`.
 **GET** `check_execution_status?execution_id=<execution_id>`
 
 ```bash
-curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_execution_status?execution_id=<execution_id>"
+curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<execution_id>"
 ```
 
 Reuse the same backoff guidance as extraction (`docagent-platform` skill).

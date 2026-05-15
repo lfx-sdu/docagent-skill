@@ -7,7 +7,7 @@ description: Calls ConfigAgent multipart endpoints prepare-and-upload and merge-
 
 **Auth:** `X-API-Key: $DOCAGENT_AGENTS_API_KEY`.
 
-Base: `$DOCAGENT_AGENTS_API_BASE_URL`.
+Base: `https://api.uat.t4s.lfxdigital.app/agents/v1`.
 
 OpenAPI models: `Body_prepare_and_upload_endpoint_config_integration_prepare_and_upload_post`, `Body_merge_pdf_endpoint_config_integration_merge_pdf_post` — fields: `execution_id` (required), optional `files` (binary array), optional `base64_inputs` (array of strings).
 
@@ -18,7 +18,7 @@ OpenAPI models: `Body_prepare_and_upload_endpoint_config_integration_prepare_and
 Behavior (from OpenAPI description): single PDF/Excel/image uploads directly; single `.ai` compresses then uploads; multi PDF/image/.ai merges to one PDF; mixed multi-Excel rejected with 400.
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/prepare-and-upload" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/config_integration/prepare-and-upload" \
   -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
   -F execution_id='<execution-id>' \
   -F files=@./document.pdf
@@ -31,7 +31,7 @@ Response type: `FileUploadResponse` — includes `blob_url` for downstream `Docs
 `POST /config_integration/merge-pdf` — multipart
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/merge-pdf" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/config_integration/merge-pdf" \
   -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
   -F execution_id='<execution-id>' \
   -F files=@./part1.pdf \

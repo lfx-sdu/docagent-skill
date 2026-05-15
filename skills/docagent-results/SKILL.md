@@ -5,7 +5,7 @@ description: Cross-cutting retrieval and polling for DocuAgent Agents API—exec
 
 # DocuAgent results (IDs & GET patterns)
 
-Everything here is **GET** unless noted. Compose URLs with `$DOCAGENT_AGENTS_API_BASE_URL`.
+Everything here is **GET** unless noted. Compose URLs with `https://api.uat.t4s.lfxdigital.app/agents/v1`.
 
 ## Document processing — execution lifecycle
 
@@ -54,7 +54,7 @@ Replace `{kind}` with `product_search`, `supplier_search`, `buyer_search`, or `f
 Extraction status:
 
 ```bash
-curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_execution_status?execution_id=<execution_id>"
+curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<execution_id>"
 ```
 
 ConfigAgent dialog:
@@ -62,7 +62,7 @@ ConfigAgent dialog:
 ```bash
 curl -sS \
   -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
-  "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/fetch-dialog/<thread_id>"
+  "https://api.uat.t4s.lfxdigital.app/agents/v1/config_integration/fetch-dialog/<thread_id>"
 ```
 
 ConfigAgent async job:
@@ -70,5 +70,5 @@ ConfigAgent async job:
 ```bash
 curl -sS \
   -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
-  "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-job/<job_id>"
+  "https://api.uat.t4s.lfxdigital.app/agents/v1/config_integration/config-job/<job_id>"
 ```

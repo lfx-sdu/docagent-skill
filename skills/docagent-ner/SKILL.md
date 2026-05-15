@@ -5,7 +5,7 @@ description: Operates NER Agents API—company/product trace and suggest, globe 
 
 # DocuAgent NER (`/ner_integration/ner/*`)
 
-Base: `$DOCAGENT_AGENTS_API_BASE_URL`. Load body schemas from `openapi.json`.
+Base: `https://api.uat.t4s.lfxdigital.app/agents/v1`. Load body schemas from `openapi.json`.
 
 ## Interactive trace / suggest
 
@@ -20,7 +20,7 @@ Base: `$DOCAGENT_AGENTS_API_BASE_URL`. Load body schemas from `openapi.json`.
 Minimal company trace example:
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/ner_integration/ner/company/trace" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/ner_integration/ner/company/trace" \
   -H "Content-Type: application/json" \
   -d '{"company_query":"Example Corp"}'
 ```
@@ -28,7 +28,7 @@ curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/ner_integration/ner/company/trac
 Minimal product suggestion example:
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/ner_integration/ner/product/suggest" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/ner_integration/ner/product/suggest" \
   -H "Content-Type: application/json" \
   -d '{"query":"stainless flange"}'
 ```

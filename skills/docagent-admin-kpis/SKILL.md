@@ -12,19 +12,19 @@ Use this skill When you need:
 - readiness / health checks against the Agents deployment
 - memory stats for troubleshooting (if permitted in your env)
 
-Base: `$DOCAGENT_AGENTS_API_BASE_URL`
+Base: `https://api.uat.t4s.lfxdigital.app/agents/v1`
 
 ## Endpoints (no mutating payloads)
 
 ```bash
 # Root health stub
-curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/"
+curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/"
 
 # Detailed health (monitoring-oriented)
-curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/health"
+curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/health"
 
 # Process memory diagnostics
-curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/memory"
+curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/memory"
 ```
 
 ## Product admin KPI dashboards

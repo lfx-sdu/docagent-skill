@@ -1,6 +1,6 @@
 # USERFLOW - DocuAgent Skills API
 
-**LFX SDU — DocuAgent.** Use **`openapi.json` / Swagger** as the source of truth for path prefixes; examples below match the published Agents API contract for document-processing, ConfigAgent, search, and NER routes.
+**LFX SDU — DocuAgent.** All **HTTP examples** use the default Agents API root `https://api.uat.t4s.lfxdigital.app/agents/v1`. **Do not** ask users to configure `DOCAGENT_AGENTS_API_BASE_URL` for onboarding—only **`DOCAGENT_AGENTS_API_KEY`** where ConfigAgent is used. Use **`openapi.json` / Swagger** as the source of truth for path prefixes under that root.
 
 This file shows the practical flow to:
 - send correct payloads,
@@ -11,26 +11,23 @@ This file shows the practical flow to:
 
 ```bash
 export DOCAGENT_AGENTS_API_KEY="<config-agent-api-key>"
-export DOCAGENT_AGENTS_API_BASE_URL="${DOCAGENT_AGENTS_API_BASE_URL:-https://api.uat.t4s.lfxdigital.app/agents/v1}"
 ```
 
-If you skip setting `DOCAGENT_AGENTS_API_BASE_URL`, examples below still work by using the same UAT default expression.
+Use this for ConfigAgent routes (`X-API-Key`). For extraction-only flows that do not require an API key, you can skip it.
 
 Health check:
 
 ```bash
-DOCAGENT_AGENTS_API_BASE_URL="${DOCAGENT_AGENTS_API_BASE_URL:-https://api.uat.t4s.lfxdigital.app/agents/v1}"
 curl -sS -o /dev/null -w "%{http_code}\n" \
-  "$DOCAGENT_AGENTS_API_BASE_URL/health"
+  "https://api.uat.t4s.lfxdigital.app/agents/v1/health"
 ```
 
 ConfigAgent auth check:
 
 ```bash
-DOCAGENT_AGENTS_API_BASE_URL="${DOCAGENT_AGENTS_API_BASE_URL:-https://api.uat.t4s.lfxdigital.app/agents/v1}"
 curl -sS -o /dev/null -w "%{http_code}\n" \
   -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
-  "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/fetch-threads/<user_id>?limit=1&skip=0"
+  "https://api.uat.t4s.lfxdigital.app/agents/v1/config_integration/fetch-threads/<user_id>?limit=1&skip=0"
 ```
 
 Expected:
@@ -57,7 +54,7 @@ Minimum payload:
 Example:
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/validate_and_extract_docs" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/validate_and_extract_docs" \
   -H "Content-Type: application/json" \
   -d '{
     "file_uri":"https://<storage>/<file>.pdf",
@@ -77,7 +74,7 @@ Endpoint:
 
 ```bash
 curl -sS \
-  "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_execution_status?execution_id=<execution_id>"
+  "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<execution_id>"
 ```
 
 Poll every 2-5 seconds until terminal status (`completed` or `failed`).
@@ -105,7 +102,7 @@ Payload:
 Example:
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-agent-stream" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/config_integration/config-agent-stream" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
   -d '{
@@ -120,7 +117,7 @@ curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-agent-
 Start job:
 
 ```bash
-curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/generate-global-config" \
+curl -sS -X POST "https://api.uat.t4s.lfxdigital.app/agents/v1/config_integration/generate-global-config" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
   -d '{"max_attempts":3}'
@@ -131,7 +128,7 @@ Poll result:
 ```bash
 curl -sS \
   -H "X-API-Key: $DOCAGENT_AGENTS_API_KEY" \
-  "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-job/<job_id>"
+  "https://api.uat.t4s.lfxdigital.app/agents/v1/config_integration/config-job/<job_id>"
 ```
 
 ## 5) Fetch final results

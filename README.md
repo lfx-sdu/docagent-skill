@@ -2,7 +2,9 @@
 
 **Repository:** [github.com/lfx-sdu/docagent-skill](https://github.com/lfx-sdu/docagent-skill)
 
-Markdown skill packs for the DocuAgent **Agents API** (`/agents/v1`). They teach agents which **HTTP** endpoints to call and how—not local Python modules or repo scripts.
+Markdown skill packs for the DocuAgent **Agents API** (`/agents/v1`) from **LFX SDU**. They teach agents which **HTTP** endpoints to call and how—not local Python modules or repo scripts.
+
+**Naming:** In this repository, routes for extraction, content check, export-to-blob, execution status, and related capabilities are described as **DocuAgent document processing** (LFX SDU). The **exact path prefix** on the wire is whatever your deployed `openapi.json` lists (legacy deployments may still use a historical segment in the URL); **do not** use retired codenames when talking about the product—use **DocuAgent**.
 
 ---
 
@@ -123,7 +125,7 @@ export DOCAGENT_AGENTS_API_KEY="<config-agent-api-key>"
 export DOCAGENT_AGENTS_API_BASE_URL="${DOCAGENT_AGENTS_API_BASE_URL:-https://api.uat.t4s.lfxdigital.app/agents/v1}"
 ```
 
-If you only use Air8 endpoints that do not require API key auth, you can skip `DOCAGENT_AGENTS_API_KEY`.
+If you only use **document-processing** routes that do not require API key auth, you can skip `DOCAGENT_AGENTS_API_KEY`.
 
 ### Optional: only some skills
 
@@ -169,13 +171,12 @@ npx skills init my-skill # my-skill/SKILL.md
 | Skill | OpenAPI tags / scope |
 |-------|---------------------|
 | `docagent-platform` | Router: pick the right skill; base URL, auth, polling, safety |
-| `docagent-extraction` | `Air8` — validate/extract docs, execution status |
-| `docagent-content-check` | `Air8` — check doc content, execution status |
-| `docagent-export-results` | `Air8` + `ConfigAgent` — export blob, extraction Excel |
+| `docagent-extraction` | DocuAgent document processing — validate/extract docs, execution status |
+| `docagent-content-check` | DocuAgent document processing — check doc content, execution status |
+| `docagent-export-results` | DocuAgent document processing + `ConfigAgent` — export blob, extraction Excel |
 | `docagent-config-agent` | `ConfigAgent` — chat, threads, jobs, mapping, embeddings, uploads |
 | `docagent-results` | Cross-cutting: execution status, search fetch, config jobs, dialog/message |
 | `docagent-admin-kpis` | **Operational only** — `GET /`, `/health`, `/memory` on Agents API *(in-app KPI dashboards live outside this OpenAPI)* |
-| `docagent-company-research` | `Air8` — company info/news search and fetch by execution |
 | `docagent-file-prep` | `ConfigAgent` — `prepare-and-upload`, `merge-pdf` (multipart) |
 | `docagent-search` | `LFSearch` — supplier/buyer/factory/product search and CRUD-style GET/DELETE |
 | `docagent-ner` | `NER` — trace, suggest, entity/product pipelines |
@@ -193,7 +194,6 @@ skills/
   docagent-config-agent/SKILL.md
   docagent-export-results/SKILL.md
   docagent-admin-kpis/SKILL.md
-  docagent-company-research/SKILL.md
   docagent-file-prep/SKILL.md
   docagent-search/SKILL.md
   docagent-ner/SKILL.md

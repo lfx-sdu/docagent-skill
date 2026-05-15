@@ -1,9 +1,9 @@
 ---
 name: docagent-content-check
-description: Calls Agents API Air8 content checking—POST check_doc_content and poll execution status. Use when users mention document checker rules, checker_config_id, order_id doc checks, or /air8_integration/check_doc_content.
+description: Calls DocuAgent Agents API document content checking—POST check_doc_content and poll execution status. Use when users mention document checker rules, checker_config_id, order_id doc checks, or check_doc_content under /agents/v1 (LFX SDU DocuAgent).
 ---
 
-# DocuAgent content check (Air8 API)
+# DocuAgent content check
 
 Base: `$DOCAGENT_AGENTS_API_BASE_URL`.
 
@@ -11,7 +11,7 @@ OpenAPI schemas: `DocumentCheckerRequest`, `DocumentCheckerResponse`, `Execution
 
 ## Start content check
 
-`POST /air8_integration/check_doc_content`
+**POST** `check_doc_content` (document-processing routes; full URL in example).
 
 Required: `order_id` (string or array of strings), `doc_types_to_check` (array).
 
@@ -32,7 +32,7 @@ Returns `execution_id` and `status`.
 
 ## Poll status
 
-`GET /air8_integration/check_execution_status?execution_id=<execution_id>`
+**GET** `check_execution_status?execution_id=<execution_id>`
 
 ```bash
 curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_execution_status?execution_id=<execution_id>"

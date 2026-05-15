@@ -14,7 +14,7 @@ description: Routes DocuAgent Agents API work by OpenAPI tag and user intent. Us
 ## Auth
 
 - **`/config_integration/*`**: OpenAPI marks these with `APIKeyHeader`; send `X-API-Key: $DOCAGENT_AGENTS_API_KEY`.
-- **Other groups** (`/air8_integration/*`, `/search_integration/*`, `/ner_integration/*`): follow your deployment; OpenAPI may omit `security`. Do not invent headers—use what your environment requires.
+- **Other groups** (DocuAgent document-processing, search, and NER routes—see `openapi.json`): follow your deployment; OpenAPI may omit `security`. Do not invent headers—use what your environment requires.
 
 ## Preflight
 
@@ -28,8 +28,8 @@ curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/health"
 2. **Content checks / rules** (`POST .../check_doc_content`) → `docagent-content-check`.
 3. **Export dataframe to blob OR extraction Excel URL** (`export_data_to_blob`, `export-extraction-excel`) → `docagent-export-results`.
 4. **Config chat, uploads, shipment mapping, embeddings, global config jobs** → `docagent-config-agent`. Multipart uploads / PDF merge → `docagent-file-prep` (focused recipes).
-5. **Poll generic `execution_id`** across Air8 flows → `docagent-results`.
-6. **Company research reports** (`search_company_info_and_news`, `get_company_info_and_news_by_id`) → `docagent-company-research`.
+5. **Poll generic `execution_id`** across DocuAgent document-processing flows → `docagent-results`.
+6. **Company research reports** (`search_company_info_and_news`, `get_company_info_and_news_by_id`) → start with **POST** from OpenAPI; poll and retrieve by `execution_id` via `docagent-results`.
 7. **Supplier/buyer/factory/product search** (`/search_integration/*`) → `docagent-search`.
 8. **NER trace / suggest / pipelines** (`/ner_integration/*`) → `docagent-ner`.
 9. **Service health / memory diagnostics only** (`/`, `/health`, `/memory`) → `docagent-admin-kpis`.
@@ -42,7 +42,7 @@ curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/health"
 
 ## Async patterns
 
-- **Air8**: responses include `execution_id` and `status`; poll `GET /air8_integration/check_execution_status?execution_id=...`.
+- **DocuAgent document processing**: responses include `execution_id` and `status`; poll execution status per OpenAPI (see `docagent-results` for the GET pattern).
 - **Config generation**: `POST /config_integration/generate-global-config` returns `job_id`; poll `GET /config_integration/config-job/{job_id}` until terminal status.
 - **Embeddings**: start endpoints return `job_id`; poll `.../shipment-code-embeddings-status/{job_id}` or `.../invoice-code-embeddings-status/{job_id}`.
 - **NER pipelines**: start returns `task_id`; poll `.../entity-pipeline/status/{task_id}` or `.../product-pipeline/status/{task_id}`.
@@ -59,7 +59,7 @@ Backoff: start at 1–2s, cap around 10–15s, stop after a reasonable wall-cloc
 | Group | Skill(s) |
 |-------|----------|
 | Health `/`, `/health`, `/memory` | `docagent-admin-kpis` |
-| `Air8` | `docagent-extraction`, `docagent-content-check`, `docagent-export-results`, `docagent-company-research`, `docagent-results` (status) |
+| DocuAgent document processing | `docagent-extraction`, `docagent-content-check`, `docagent-export-results`, `docagent-results` (status) |
 | `ConfigAgent` | `docagent-config-agent`, `docagent-export-results` (Excel), `docagent-file-prep` |
 | `LFSearch` | `docagent-search`, `docagent-results` (GET by id) |
 | `NER` | `docagent-ner` |

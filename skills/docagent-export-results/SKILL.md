@@ -1,13 +1,13 @@
 ---
 name: docagent-export-results
-description: Exports extraction-related outputs via Agents API—Air8 export_data_to_blob and ConfigAgent export-extraction-excel (X-API-Key). Use when users need downloadable blob export from records or extraction Excel URLs.
+description: Exports extraction-related outputs via DocuAgent Agents API—export_data_to_blob (document-processing) and ConfigAgent export-extraction-excel (X-API-Key). Use when users need downloadable blob export from records or extraction Excel URLs (LFX SDU DocuAgent).
 ---
 
 # DocuAgent export results (Agents API)
 
-## Export dataframe / records to blob (Air8)
+## Export dataframe / records to blob
 
-`POST /air8_integration/export_data_to_blob`
+**POST** `export_data_to_blob` (document-processing routes; full URL in example).
 
 OpenAPI schemas: `DataframeExporterRequest`, `DataframeExporterResponse`.
 

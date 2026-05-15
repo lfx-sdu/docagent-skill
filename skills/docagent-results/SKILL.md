@@ -1,23 +1,23 @@
 ---
 name: docagent-results
-description: Cross-cutting retrieval and polling patterns for Agents API—Air8 execution_id status, LFSearch GET by search_id, ConfigAgent threads/messages/jobs/embeddings statuses. Use when correlating IDs across extraction, search, config, or NER tasks.
+description: Cross-cutting retrieval and polling for DocuAgent Agents API—execution_id status for document-processing jobs, LFSearch GET by search_id, ConfigAgent threads/messages/jobs/embeddings statuses. Use when correlating IDs across extraction, search, config, or NER tasks (LFX SDU DocuAgent).
 ---
 
 # DocuAgent results (IDs & GET patterns)
 
 Everything here is **GET** unless noted. Compose URLs with `$DOCAGENT_AGENTS_API_BASE_URL`.
 
-## Air8 — execution lifecycle
+## Document processing — execution lifecycle
 
-Poll any Air8-backed async job using:
+Poll any async document-processing job using:
 
-`GET /air8_integration/check_execution_status?execution_id=<execution_id>`
+**GET** `check_execution_status?execution_id=<execution_id>` (full URL in recipe below).
 
 Company research retrieval:
 
-`GET /air8_integration/get_company_info_and_news_by_id?execution_id=<execution_id>`
+**GET** `get_company_info_and_news_by_id?execution_id=<execution_id>`
 
-(Starting research is POST — see `docagent-company-research`.)
+(Starting company research: **POST** per OpenAPI—for example `search_company_info_and_news` under the same document-processing route group as extraction.)
 
 ## LFSearch — fetch by `search_id`
 

@@ -1,9 +1,9 @@
 ---
 name: docagent-extraction
-description: Calls DocuAgent Agents API Air8 extraction endpoints—validate/extract documents and merged field-config preview—with execution-status polling via execution_id. Use when users mention document extraction, validate_and_extract_docs, field_config_id, or extraction pipeline against /agents/v1.
+description: Calls DocuAgent Agents API document extraction—validate/extract documents and merged field-config preview—with execution-status polling via execution_id. Use when users mention document extraction, validate_and_extract_docs, field_config_id, or extraction pipeline against /agents/v1 (LFX SDU DocuAgent).
 ---
 
-# DocuAgent extraction (Air8 API)
+# DocuAgent extraction
 
 Base: `$DOCAGENT_AGENTS_API_BASE_URL` — paths below are appended.
 
@@ -11,7 +11,7 @@ Schemas: `$DOCAGENT_AGENTS_API_BASE_URL/openapi.json` (`DocsValidationRequest`, 
 
 ## Start extraction / validation
 
-`POST /air8_integration/validate_and_extract_docs`
+**POST** `validate_and_extract_docs` (document-processing routes; path matches OpenAPI—see `curl` below).
 
 Body fields (minimum from OpenAPI): `file_uri`, `order_id`, `nation`, `possible_doc_type` (array). Optional includes `execution_id`, `created_by`, `field_config_id`, `parent_config_id`, preprocessing flags (`enable_image_preprocessing`, `rotate_upright`, …), `external_context`, `prompt_template_id`, etc.
 
@@ -38,7 +38,7 @@ Response (typical): `execution_id`, `status`. Poll until terminal.
 
 ## Poll execution status
 
-`GET /air8_integration/check_execution_status?execution_id=<id>`
+**GET** `check_execution_status?execution_id=<id>` (same document-processing path prefix as OpenAPI).
 
 ```bash
 curl -sS "$DOCAGENT_AGENTS_API_BASE_URL/air8_integration/check_execution_status?execution_id=<execution_id>"
@@ -57,7 +57,7 @@ done
 
 ## Preview merged parent/child config
 
-`POST /air8_integration/preview_merged_config`
+**POST** `preview_merged_config`
 
 Requires `parent_config_id` and `child_config_id`.
 

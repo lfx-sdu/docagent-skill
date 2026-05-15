@@ -1,5 +1,7 @@
 # USERFLOW - DocuAgent Skills API
 
+**LFX SDU — DocuAgent.** Use **`openapi.json` / Swagger** as the source of truth for path prefixes; examples below match the published Agents API contract for document-processing, ConfigAgent, search, and NER routes.
+
 This file shows the practical flow to:
 - send correct payloads,
 - call Extraction and ConfigAgent APIs,
@@ -36,7 +38,7 @@ Expected:
 - `401/403`: wrong or missing API key.
 - `422`: invalid path/query values.
 
-## 2) Start extraction (Air8)
+## 2) Start extraction (document processing)
 
 Endpoint:
 - `POST /air8_integration/validate_and_extract_docs`
@@ -153,7 +155,7 @@ curl -sS \
 - Missing `Content-Type: application/json` on POST -> add the header.
 - Missing API key on ConfigAgent routes -> add `X-API-Key`.
 - Losing IDs (`execution_id`, `thread_id`, `job_id`) -> persist IDs from each POST response before next step.
-- Reusing wrong IDs across routes -> use `execution_id` for Air8 status and `job_id` for config jobs.
+- Reusing wrong IDs across routes -> use `execution_id` for document-processing execution status and `job_id` for config jobs.
 
 ## 7) Recommended integration pattern
 

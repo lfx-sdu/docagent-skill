@@ -1,22 +1,39 @@
 # DocuAgent Skills
 
-Reusable agent skills for the DocuAgent **Agents API** (`/agents/v1`), compatible with the Vercel Skills CLI. Skills teach agents to call **HTTP endpoints** directly—**not** local repo scripts or backend module paths.
+**Repository:** [github.com/lfx-sdu/docagent-skill](https://github.com/lfx-sdu/docagent-skill)
+
+Markdown skill packs for the DocuAgent **Agents API** (`/agents/v1`). They teach agents which **HTTP** endpoints to call and how—not local Python modules or repo scripts.
+
+---
+
+## Start here
+
+| Step | What to do |
+|------|------------|
+| 1 | [Install skills](#install) into your agent (Cursor, Copilot, Claude Code, …) via the Skills CLI, **or** clone this repo if your workflow is file-based. |
+| 2 | Set [environment variables](#prerequisites) so the agent knows the API base URL and (when needed) the ConfigAgent API key. |
+| 3 | Follow **[USERFLOW.md](USERFLOW.md)** for end-to-end requests: extraction → polling → ConfigAgent → results. |
+
+**This repo** = skill text under `skills/*/SKILL.md`.  
+**Not in this repo** = your API keys, tenant URLs, or PDFs—those stay in env and your storage.
+
+---
 
 ## Prerequisites
 
-- Network access to the Agents API (UAT example below).
-- Credentials as required by your environment: many routes have **no** `security` in OpenAPI; **ConfigAgent** routes use **`X-API-Key`**.
+- Reachable **Agents API** (example UAT host appears in examples below; use your own URL for prod).
+- **ConfigAgent** routes expect **`X-API-Key`** when your OpenAPI marks them as API-key auth.
 
 ### Environment variables
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
 | `DOCAGENT_AGENTS_API_BASE_URL` | Yes | API root, e.g. `https://api.uat.t4s.lfxdigital.app/agents/v1` |
-| `DOCAGENT_AGENTS_API_KEY` | For ConfigAgent | Sent as `X-API-Key` on `/config_integration/*` routes that declare API key auth |
+| `DOCAGENT_AGENTS_API_KEY` | For ConfigAgent | Sent as `X-API-Key` on `/config_integration/*` where applicable |
 
-Optional (only if your tenant still uses Azure AD client credentials for a different surface):
+Optional (only if another surface still uses Azure AD client credentials):
 
-- `DOCAGENT_TENANT_ID`, `DOCAGENT_CLIENT_ID`, `DOCAGENT_CLIENT_SECRET`, `DOCAGENT_SCOPE` — **not** used by the Agents OpenAPI doc by default.
+- `DOCAGENT_TENANT_ID`, `DOCAGENT_CLIENT_ID`, `DOCAGENT_CLIENT_SECRET`, `DOCAGENT_SCOPE` — **not** required by the default Agents OpenAPI flow documented here.
 
 ### Reference docs
 
@@ -40,19 +57,19 @@ curl -sS -o /dev/null -w "%{http_code}\n" \
   "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/fetch-threads/<user_id>?limit=1&skip=0"
 ```
 
-Adjust `<user_id>` to a valid id for your tenant.
+Replace `<user_id>` with a valid id for your tenant.
+
+---
 
 ## API usage quickstart (payload-first)
 
-Use this order when integrating:
-
-1. Validate environment (`/health`, API key preflight).
+1. Validate environment (`/health`, API key preflight if you use ConfigAgent).
 2. Start extraction with a valid `DocsValidationRequest` payload.
-3. Poll `execution_id` until terminal status.
-4. If needed, run ConfigAgent flow (`config-agent-stream` or async config job).
+3. Poll `execution_id` until a terminal status.
+4. If needed, run ConfigAgent (`config-agent-stream` or async config job).
 5. Fetch outputs via result endpoints (`check_execution_status`, dialog/message/job GETs).
 
-For complete request/response recipes, see `USERFLOW.md`.
+**Full step-by-step payloads and status handling:** [USERFLOW.md](USERFLOW.md).
 
 ### Extraction minimal payload
 
@@ -80,30 +97,58 @@ curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-agent-
   }'
 ```
 
+---
+
 ## Install
 
-This repo holds **skill instructions** (Markdown). It does **not** contain API secrets. Callers still need your **Agents API base URL** and, where applicable, **`X-API-Key`** via environment variables (see [Prerequisites](#prerequisites)). Making the GitHub repo **public** is therefore normal: access control is at the API and key layer, not in cloning these files.
+Use the [Vercel Skills CLI](https://vercel.com/docs/agent-resources/skills). Discoverability: [skills.sh](https://skills.sh).
 
-Install with the [Vercel Skills CLI](https://vercel.com/docs/agent-resources/skills) ([skills.sh](https://skills.sh)):
+### Default: install all skills
 
 ```bash
 npx skills add lfx-sdu/docagent-skill
+```
+
+Installs every skill from the default branch of [lfx-sdu/docagent-skill](https://github.com/lfx-sdu/docagent-skill). After install, configure [Prerequisites](#prerequisites); the CLI does not inject your API secrets.
+
+### Optional: only some skills
+
+```bash
 npx skills add lfx-sdu/docagent-skill --skill docagent-platform --skill docagent-extraction
+```
+
+### Optional: global install on your machine
+
+```bash
 npx skills add lfx-sdu/docagent-skill -g
+```
+
+### Optional: target specific agent integrations
+
+```bash
 npx skills add lfx-sdu/docagent-skill -a cursor -a codex -a claude-code
 ```
 
-Lines 2–4 are optional variants (subset of skills, global install, or target specific agents). Line 1 installs everything from the default branch of [`lfx-sdu/docagent-skill`](https://github.com/lfx-sdu/docagent-skill).
+### Without the CLI: clone the repo
+
+```bash
+git clone https://github.com/lfx-sdu/docagent-skill.git
+```
+
+Then wire `skills/<skill-name>/SKILL.md` according to your product’s “local skills” rules.
+
+### Public GitHub vs API access
+
+The skill Markdown can live in a **public** repo: it is not a substitute for tenant credentials. Real access control is **`DOCAGENT_AGENTS_API_BASE_URL`**, keys, and your network policies. Never commit `.env` or keys.
 
 ### Scaffold a new skill (any project)
 
 ```bash
-# SKILL.md in the current directory
-npx skills init
-
-# New skill folder: my-skill/SKILL.md
-npx skills init my-skill
+npx skills init          # SKILL.md in the current directory
+npx skills init my-skill # my-skill/SKILL.md
 ```
+
+---
 
 ## Included skills
 
@@ -121,6 +166,8 @@ npx skills init my-skill
 | `docagent-search` | `LFSearch` — supplier/buyer/factory/product search and CRUD-style GET/DELETE |
 | `docagent-ner` | `NER` — trace, suggest, entity/product pipelines |
 
+---
+
 ## Repository layout
 
 ```text
@@ -136,4 +183,6 @@ skills/
   docagent-file-prep/SKILL.md
   docagent-search/SKILL.md
   docagent-ner/SKILL.md
+USERFLOW.md
+README.md
 ```

@@ -82,40 +82,18 @@ curl -sS -X POST "$DOCAGENT_AGENTS_API_BASE_URL/config_integration/config-agent-
 
 ## Install
 
-**Team repo (canonical):** [`lfx-sdu/docagent-skill`](https://github.com/lfx-sdu/docagent-skill)
+This repo holds **skill instructions** (Markdown). It does **not** contain API secrets. Callers still need your **Agents API base URL** and, where applicable, **`X-API-Key`** via environment variables (see [Prerequisites](#prerequisites)). Making the GitHub repo **public** is therefore normal: access control is at the API and key layer, not in cloning these files.
+
+Install with the [Vercel Skills CLI](https://vercel.com/docs/agent-resources/skills) ([skills.sh](https://skills.sh)):
 
 ```bash
-# install all skills from this repo
 npx skills add lfx-sdu/docagent-skill
-
-# install selected skills
 npx skills add lfx-sdu/docagent-skill --skill docagent-platform --skill docagent-extraction
-
-# install globally for your machine
 npx skills add lfx-sdu/docagent-skill -g
-
-# install to specific agents
 npx skills add lfx-sdu/docagent-skill -a cursor -a codex -a claude-code
 ```
 
-Optional fork for experiments: [`erictaicp/docagent-skills`](https://github.com/erictaicp/docagent-skills) — same `npx skills add erictaicp/docagent-skills` pattern as above.
-
-### Maintainers (Git remotes)
-
-This clone can keep **two** remotes:
-
-| Remote | URL | Use |
-|--------|-----|-----|
-| `lfx` | `https://github.com/lfx-sdu/docagent-skill.git` | Team canonical; `git push lfx main` |
-| `origin` | `https://github.com/erictaicp/docagent-skills.git` | Personal fork; `git push origin main` when you want it in sync |
-
-```bash
-git remote add lfx https://github.com/lfx-sdu/docagent-skill.git   # once, if missing
-git push -u lfx main
-git push origin main    # optional: update fork
-```
-
-Teammates only need the team URL and `npx skills add lfx-sdu/docagent-skill` (see [Vercel Agent Skills](https://vercel.com/docs/agent-resources/skills)).
+Lines 2–4 are optional variants (subset of skills, global install, or target specific agents). Line 1 installs everything from the default branch of [`lfx-sdu/docagent-skill`](https://github.com/lfx-sdu/docagent-skill).
 
 ### Scaffold a new skill (any project)
 

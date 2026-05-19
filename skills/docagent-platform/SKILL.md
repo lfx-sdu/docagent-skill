@@ -1,9 +1,15 @@
 ---
 name: docagent-platform
-description: Routes DocuAgent Agents API work by OpenAPI tag and user intent. Use when choosing which skill applies, auth (X-API-Key for ConfigAgent), polling async jobs, or staying endpoint-first against https://api.uat.t4s.lfxdigital.app/agents/v1.
+description: Routes DocuAgent Agents API work by OpenAPI tag and user intent. Use when choosing which skill applies, auth (X-API-Key for ConfigAgent), polling async jobs, or staying endpoint-first against https://api.uat.t4s.lfxdigital.app/agents/v1. If the task involves the Next.js app, NestJS execution/config services, or gateway paths—not raw curl—read docagent-integration-architecture first.
 ---
 
 # DocuAgent platform (Agents API router)
+
+## Not just direct HTTP to SDU
+
+The [Agents Swagger UI](https://api.uat.t4s.lfxdigital.app/agents/v1/docs) documents the **SDU FastAPI** service. The **DocuAgent product UI** usually calls **NestJS** (`/execution/*`, `/v1/config/*`) with **Azure AD JWT**; NestJS then calls SDU with `X-API-Key`. Some UI paths (Insights, Config Agent stream in direct mode) call SDU from the browser. Full matrix: **`docagent-integration-architecture`**.
+
+OpenAPI wire prefixes: **`Air8`** → `/air8_integration/`, **`ConfigAgent`** → `/config_integration/`, **`LFSearch`** → `/search_integration/`, **`NER`** → `/ner_integration/`.
 
 ## Default API root (LFX SDU DocuAgent)
 
@@ -24,11 +30,12 @@ curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/health"
 
 ## Decision tree (pick domain skill)
 
+0. **Check results / is my job done / Results page** → `docagent-results` (start here for end users).
 1. **Extract / validate documents** (`POST .../validate_and_extract_docs`, execution status) → `docagent-extraction`.
 2. **Content checks / rules** (`POST .../check_doc_content`) → `docagent-content-check`.
 3. **Export dataframe to blob OR extraction Excel URL** (`export_data_to_blob`, `export-extraction-excel`) → `docagent-export-results`.
 4. **Config chat, uploads, shipment mapping, embeddings, global config jobs** → `docagent-config-agent`. Multipart uploads / PDF merge → `docagent-file-prep` (focused recipes).
-5. **Poll generic `execution_id`** across DocuAgent document-processing flows → `docagent-results`.
+5. **Poll generic `execution_id`** on raw SDU (not the Results UI) → `docagent-results` (SDU section).
 6. **Company research reports** (`search_company_info_and_news`, `get_company_info_and_news_by_id`) → start with **POST** from OpenAPI; poll and retrieve by `execution_id` via `docagent-results`.
 7. **Supplier/buyer/factory/product search** (`/search_integration/*`) → `docagent-search`.
 8. **NER trace / suggest / pipelines** (`/ner_integration/*`) → `docagent-ner`.

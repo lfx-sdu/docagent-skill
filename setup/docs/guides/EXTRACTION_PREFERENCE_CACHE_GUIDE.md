@@ -127,6 +127,7 @@ fi
 
 1. Read cache and propose defaults to user.
 2. Validate cached `field_config_id`, `nation`, and `possible_doc_type` against current selectable options.
+   - Reference parser: `skills/docagent-extraction/SKILL.md` preflight "Safe list-config script".
 3. If invalid or stale, ignore cache and rerun preflight.
 4. Save cache only after user confirms values.
 

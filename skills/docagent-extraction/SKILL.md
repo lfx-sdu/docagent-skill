@@ -134,6 +134,36 @@ Do these **before** creating an execution. Skipping them causes misleading 422 e
 6. **Upload with an ASCII multipart filename** — `file=@/path/doc.pdf;filename=277-invoice.pdf`
 7. **Prefer `flash_mode: true`** for API runs (matches successful UAT automation; UI may differ).
 
+Safe list-config script (handles both list and paged object responses):
+
+```bash
+curl -sS -H "Authorization: Bearer $DOCAGENT_BEARER_TOKEN" \
+  "${DOCAGENT_NESTJS_BASE_URL}/config/sdu-field-configs?page=0&size=100&sortOrder=desc" \
+  | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+if isinstance(data, list):
+    items = data
+elif isinstance(data, dict):
+    items = data.get('content') or data.get('items') or data.get('data') or []
+else:
+    items = []
+print(f'Total configs returned: {len(items)}')
+print()
+for c in items[:40]:
+    name = (c.get('name') or '').strip()
+    cid = c.get('id') or c.get('_id')
+    parent = c.get('parent_id') or c.get('parent_config_id')
+    print(repr(name))
+    print(f'  id: {cid}')
+    if parent:
+        print(f'  parent_id: {parent}')
+    print()
+"
+```
+
+Important: do **not** call `data.get(...)` before checking `isinstance(data, dict)`.
+
 ### Execution gate (mandatory)
 
 If the user provides only a file (or an ambiguous extraction request), **do not create an execution yet**.

@@ -124,6 +124,7 @@ Use `docagent-results` with this order:
 Use `docagent-extraction`:
 1. **`field_config_id` first** — then list valid **Country** (`nation`) and **Document type** (`possible_doc_type`) from **that** config’s `fieldConfig` (not ISO codes; not values from another config).
 2. If user did not explicitly provide config + nation + doc type, run preflight and ask for confirmation before execute.
+   - Use the safe list-config parser in `skills/docagent-extraction/SKILL.md` (preflight section) to avoid list-vs-dict response errors.
 3. Single upload: create → blob upload → poll by id.
 4. Multi-file merge: `merge-and-trigger` → poll by id.
 5. Batch tab: create batch → process batch → poll batch.

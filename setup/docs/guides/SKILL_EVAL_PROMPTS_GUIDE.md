@@ -16,6 +16,58 @@ Test these skills:
 4. Mark fail if any `Fail signals` appear.
 5. Record pass/fail and notes.
 
+## Preflight command (copy-paste)
+
+Load token safely, then list configs (handles list **or** paged JSON):
+
+```bash
+export DOCAGENT_BEARER_TOKEN="$(python3 - <<'PY'
+from pathlib import Path
+for line in Path('/Users/erictaicp/work/docagent-skills/.env').read_text().splitlines():
+    if line.startswith('DOCAGENT_BEARER_TOKEN='):
+        print(line.split('=', 1)[1])
+        break
+PY
+)"
+export DOCAGENT_NESTJS_BASE_URL="https://uat.api.doc-agent.lfxdigital.app/v1"
+
+curl -sS -H "Authorization: Bearer $DOCAGENT_BEARER_TOKEN" \
+  "${DOCAGENT_NESTJS_BASE_URL}/config/sdu-field-configs?page=0&size=100&sortOrder=desc" \
+  | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+if isinstance(data, list):
+    items = data
+elif isinstance(data, dict):
+    items = data.get('content') or data.get('items') or data.get('data') or []
+else:
+    items = []
+print(f'Total configs returned: {len(items)}')
+for c in items[:40]:
+    name = (c.get('name') or '').strip()
+    cid = c.get('id') or c.get('_id')
+    parent = c.get('parent_id') or c.get('parent_config_id')
+    print(repr(name))
+    print(f'  id: {cid}')
+    if parent:
+        print(f'  parent_id: {parent}')
+    print()
+"
+```
+
+Canonical reference: `skills/docagent-extraction/SKILL.md` (preflight section, **Safe list-config script**).
+
+## Kimi WebBridge checks (UI)
+
+When `extension_connected: true`:
+
+1. Open `https://uat.doc-agent.lfxdigital.app/document-extraction`
+2. Confirm Field configuration dropdown requires explicit selection
+3. Click **Extract** without config/file/order → validation errors appear
+4. Open `https://uat.doc-agent.lfxdigital.app/results` and confirm recent runs load
+
+If `extension_connected: false`, run API checks above and ask user to connect the extension: https://www.kimi.com/features/webbridge
+
 ---
 
 ## docagent-platform

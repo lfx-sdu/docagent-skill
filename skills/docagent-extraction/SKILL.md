@@ -134,6 +134,82 @@ Do these **before** creating an execution. Skipping them causes misleading 422 e
 6. **Upload with an ASCII multipart filename** — `file=@/path/doc.pdf;filename=277-invoice.pdf`
 7. **Prefer `flash_mode: true`** for API runs (matches successful UAT automation; UI may differ).
 
+### Execution gate (mandatory)
+
+If the user provides only a file (or an ambiguous extraction request), **do not create an execution yet**.
+
+Required flow:
+
+1. Run preflight and show candidate configs.
+2. Show valid pairs for the selected config (`nation` + `possible_doc_type`).
+3. Ask for explicit confirmation of:
+   - `field_config_id`
+   - `nation`
+   - `possible_doc_type`
+   - `use_parent_config` / `parent_config_id` (if applicable)
+4. Execute only after confirmation.
+
+Hard rules:
+
+- Never auto-assign config from filename hints (e.g. `PL`, `invoice`, `ship`).
+- Never reuse previous run parameters when the user did not confirm them for this run.
+- If Kimi WebBridge is available, prefer checking current UI dropdown options to validate what is selectable now.
+
+### UI-first handoff (default)
+
+After preflight + confirmation, default to routing the user back to the UI with the chosen values, and only run API execution when the user asks to run now.
+
+Return:
+
+1. Direct page link: `https://uat.doc-agent.lfxdigital.app/document-extraction`
+2. Confirmed value pack (copy/paste):
+   - `field_config_id`
+   - `order_id`
+   - `nation`
+   - `possible_doc_type`
+   - `use_parent_config` / `parent_config_id`
+   - `flash_mode` / `validate_doc_type`
+   - `external_context` (if provided)
+3. Optional deep-link pattern for future UI support:
+   - `.../document-extraction?field_config_id=...&order_id=...&nation=...&doc_type=...`
+   - If not supported by frontend, still provide the same value pack in text.
+
+### Preference cache (per user, optional)
+
+Use cache as a convenience layer only. Keep it outside the repo:
+
+- Directory: `~/.cache/docagent-skills/preferences/`
+- File: `~/.cache/docagent-skills/preferences/<user_key>.json`
+- Never write cache under `skills/` or commit cache files.
+
+Suggested schema:
+
+```json
+{
+  "version": 1,
+  "updated_at": "2026-05-20T16:30:00Z",
+  "tenant": "uat",
+  "extraction_defaults": {
+    "field_config_id": "ai-gen-...",
+    "nation": "general",
+    "possible_doc_type": ["shipdoc"],
+    "use_parent_config": true,
+    "parent_config_id": null,
+    "flash_mode": true,
+    "validate_doc_type": false
+  }
+}
+```
+
+Required behavior:
+
+1. Read cache and propose defaults ("use last confirmed values?").
+2. Validate cached config + nation + doc type against current config/UI options.
+3. If invalid/stale, ignore cache and run normal preflight + confirmation.
+4. Save only after explicit user confirmation.
+
+Do not cache secrets (`DOCAGENT_BEARER_TOKEN`, API keys, raw document payloads).
+
 ### UAT invoice configs (verified)
 
 | Config | ID | Use for invoices? |
@@ -311,7 +387,7 @@ After success, link the user to `https://uat.doc-agent.lfxdigital.app/results` a
 
 | User request | Action |
 |--------------|--------|
-| "Extract this file" | Preflight config → single-file 3-step flow |
+| "Extract this file" | Preflight config + show valid pairs + get explicit confirmation, then route to `/document-extraction` with confirmed value pack (run API only if user asks) |
 | "Which config / country / doc type?" | `GET` config by id; print valid **(Country → Document type)** pairs for that id only |
 | "Merge these files and extract" | `merge-and-trigger` (2+ files) |
 | "Run/process my batch" | Batch create/process/get endpoints |

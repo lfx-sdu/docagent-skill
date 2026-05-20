@@ -80,6 +80,49 @@ Full agent playbook: `skills/docagent-extraction/SKILL.md`.
 5. API runs: prefer `flash_mode: true`, `validate_doc_type: false`.
 6. UAT `invoice child 2` / `invoice_child` are empty stubs — use a populated config or the tenant config from the UI.
 
+### E0.5 Confirmation gate (mandatory before execute)
+
+If the user only provides files (or leaves config details ambiguous), do not call extraction execution endpoints yet.
+
+1. Show candidate config(s) and valid pairs for each selected config.
+2. Ask for explicit confirmation of:
+   - `field_config_id`
+   - `nation`
+   - `possible_doc_type`
+   - `use_parent_config` / `parent_config_id` (if needed)
+3. Execute only after confirmation.
+
+Never auto-assign config by filename hints (for example `PL`, `invoice`, `ship`).
+
+### E0.6 UI handoff (default path)
+
+After E0 + E0.5, prefer sending the user back to:
+
+- `https://uat.doc-agent.lfxdigital.app/document-extraction`
+
+Include a confirmed value pack they can apply in UI:
+
+- `field_config_id`, `order_id`, `nation`, `possible_doc_type`
+- `use_parent_config` / `parent_config_id`
+- `flash_mode`, `validate_doc_type`, `external_context`
+
+Run API execution directly only when the user explicitly asks the agent to run now.
+
+### E0.7 Optional per-user preference cache
+
+Use cache only as a suggestion layer:
+
+- Path: `~/.cache/docagent-skills/preferences/<user_key>.json`
+- Cache defaults: `field_config_id`, `nation`, `possible_doc_type`, `use_parent_config`, `parent_config_id`, `flash_mode`, `validate_doc_type`
+- Never cache secrets or raw document payloads
+
+Flow:
+
+1. Load cache and propose "last used" defaults.
+2. Re-validate against current config/UI options.
+3. If invalid/stale, ignore cache and continue with E0 + E0.5.
+4. Save updated defaults only after explicit confirmation.
+
 ### E1. Single upload (1 file)
 
 1. `POST /execution/sdu-extraction-executions` (create execution + `fileSasUri`)

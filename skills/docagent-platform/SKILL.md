@@ -69,12 +69,26 @@ Local dev: frontend `http://localhost:3001/v1`; config may use `NEXT_PUBLIC_CONF
 
 ---
 
+## Preference cache (routing hint, not source of truth)
+
+For per-user defaults, use local cache outside this repo:
+
+- `~/.cache/docagent-skills/preferences/<user_key>.json`
+
+Router behavior:
+
+1. If cache exists, propose cached extraction defaults.
+2. Always validate cached values against live config options before using.
+3. If mismatch, ignore cache and route to extraction preflight + confirmation.
+4. Never store tokens/keys in cache.
+
 ## Routing checklist (what skill to use)
 
 1. **User asks about runs/results/check status/share/queue?**  
    Use `docagent-results`.
 2. **User asks to extract docs/upload docs/merge files/batch extraction?**  
    Use `docagent-extraction`.
+   - If `field_config_id` / `nation` / `possible_doc_type` are missing or ambiguous, route to **confirm mode** (preflight + user confirmation) before any execution call.
 3. **User asks to create/update/delete field/checker configs?**  
    Use `docagent-config-updates`.
 3. **User has only `execution_id` and no bearer token?**  
@@ -109,9 +123,10 @@ Use `docagent-results` with this order:
 
 Use `docagent-extraction`:
 1. **`field_config_id` first** — then list valid **Country** (`nation`) and **Document type** (`possible_doc_type`) from **that** config’s `fieldConfig` (not ISO codes; not values from another config).
-2. Single upload: create → blob upload → poll by id.
-3. Multi-file merge: `merge-and-trigger` → poll by id.
-4. Batch tab: create batch → process batch → poll batch.
+2. If user did not explicitly provide config + nation + doc type, run preflight and ask for confirmation before execute.
+3. Single upload: create → blob upload → poll by id.
+4. Multi-file merge: `merge-and-trigger` → poll by id.
+5. Batch tab: create batch → process batch → poll batch.
 
 ---
 

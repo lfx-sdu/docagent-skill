@@ -10,6 +10,10 @@ Skills are aligned with the **DocuAgent frontend** (`doc-agent/frontend`): Resul
 
 **Agent rule:** When a user asks to check results and provides an **`execution_id`**, poll SDU immediately — do not reply that this repo "only has skills" or that results require Azure AD. For **recent runs** without an id, use NestJS list + Bearer JWT or guide `/results`. See [USERFLOW.md](USERFLOW.md) and `docagent-results`.
 
+**Extraction rule:** For `/document-extraction`, do not auto-assign `field_config_id` from filename or guesswork. If config/nation/doc type are missing, run preflight, show valid pairs for candidate config(s), and require explicit confirmation. Default response is UI handoff to `/document-extraction` with the confirmed value pack; call create/upload/poll APIs only when the user asks to run now.
+
+**Preference cache rule:** Per-user extraction defaults may be cached only outside the repo (for example `~/.cache/docagent-skills/preferences/<user_key>.json`). Cache is advisory, must be revalidated against live config options each run, and must never store tokens/keys.
+
 ---
 
 ## Included skills

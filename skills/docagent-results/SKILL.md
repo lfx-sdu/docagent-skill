@@ -5,7 +5,19 @@ description: Check DocuAgent extraction, batch, and content-check results. Use w
 
 # Check results (DocuAgent)
 
-**Source of truth for product UX:** `doc-agent/frontend` — `/results`, `app/services/results/`, `app/utils/axiosInstance.ts`.
+**Source of truth:** upstream repo `doc-agent` (sibling checkout e.g. `/Users/erictaicp/work/doc-agent`):
+
+| Area | Path |
+|------|------|
+| Results API client | `frontend/app/services/results/index.ts` |
+| Share | `frontend/app/services/results/share.ts` |
+| Types / filters | `frontend/app/models/results/index.ts` |
+| GET-by-id + 422 | `frontend/app/services/documentExtraction/index.ts` |
+| Auth / Bearer | `frontend/app/utils/axiosInstance.ts` |
+| UAT API host (deploy) | `setup/scripts/ops/check-oapi.sh`, `.github/workflows/backend-exec-uat.yaml` → `uat.api.doc-agent.lfxdigital.app` |
+| Product UX map | `setup/docs/guides/USERFLOW.md` |
+
+Network capture on UAT confirms runtime behavior; **source code** adds endpoints, types, and edge cases the UI does not always call on first load.
 
 ## Hostnames (do not swap)
 
@@ -71,6 +83,56 @@ Captured from `https://uat.doc-agent.lfxdigital.app/results` (Extractions tab). 
 | Queue | `queue` | `/execution/sdu-extraction-executions/queue-status` |
 
 List response is a **JSON array** of executions (`id`, `status`, `requestBody`, `output`, `createdOn`, …). UI maps `status` to COMPLETED / FAILED / QUEUED, etc.
+
+### Endpoint details (per-call, UAT — network + curl)
+
+Use WebBridge `network list` / `network detail` on `uat.api…` after reload or row actions. Below matches live traffic (May 2026).
+
+| Endpoint | Method | Response / notes |
+|----------|--------|------------------|
+| `/execution/admin/auth/status` | GET | `{ isAdmin, role }` — session probe on load |
+| `/execution/sdu-extraction-executions?…` | GET | **Array** of runs. Default query: `page=0&size=50&sortBy=createdOn&sortOrder=desc`. Filters: `orderId`, `executionId` (partial), `fieldConfigId`, `status`, `fromDate`, `toDate`. UI form may send `created_on_from` / `created_on_to` — client maps to `fromDate` / `toDate` in `getDocumentExtractionResults`. List fetch uses **AbortSignal** (cancel stale requests on filter change). |
+| `/execution/sdu-extraction-executions/records/count?…` | GET | `{ totalRecordNum }` — same filter query as list |
+| `/execution/sdu-extraction-executions/me/job-uptime?days=14` | GET | `{ buckets, totalJobs, totalFailed, fromLabel, toLabel }` — banner above tabs; UI refresh ~60s |
+| `/execution/sdu-extraction-executions/queue-status` | GET | `{ activeExecutions, queuedExecutions, queuedExecutionIds, maxConcurrentExecutions, pendingInDatabase, processingInDatabase, totalWaiting, availableSlots, serviceBusQueueDepth, capacityPercentage, systemStatus, isOverCapacity, … }` — Queue tab; UI refresh ~15s |
+| `/execution/sdu-extraction-executions/batch?page&size` | GET | `{ pagination: { total, page, size }, data: [...] }` — Batches tab (not a bare array) |
+| `/execution/sdu-check-content-executions?…` | GET | Array (may be empty) — Checks tab |
+| `/execution/sdu-check-content-executions/records/count` | GET | `{ totalRecordNum }` |
+| `/execution/sdu-extraction-executions/{id}` | GET | Full record: `output`, `requestBody`, `createdOn`, `createdBy`, `metadata`, `fileSasUri`, … — used when opening output / polling a run |
+| `/execution/sdu-extraction-executions/{id}/share` | GET | Existing share metadata if any (may be empty before share) |
+| `/execution/sdu-extraction-executions/{id}/share` | POST | `{ shareToken, shareUrl, expiresAt }` — e.g. `shareUrl` → `https://uat.doc-agent.lfxdigital.app/share/{token}` |
+| `/execution/sdu-extraction-executions/{id}/retry` | POST | Retry failed run (UI **Retry** button) |
+| `/execution/sdu-export-data-executions` | POST | **Single row:** `{ "execution_id": "<uuid>" }` → **201** `{ id, execution_id, url, status, … }`. **Bulk (Export selected):** `{ "records_to_export": { "<execution_id>": "<order_id>", … }, "output_format": "xlsx" }` per `triggerExportData` in source. |
+| `/execution/sdu-export-data-executions` | GET | List export jobs (Exports-related flows in product) |
+| `/execution/sdu-extraction-executions/{id}/edited-output` | PATCH | Save edited extraction output |
+| `/execution/sdu-extraction-executions/{id}/edited-output/discard` | PATCH | Discard edits |
+| `/execution/sdu-extraction-executions/{id}/share` | DELETE | Disable sharing (`disableSharing`) |
+| `/execution/sdu-extraction-executions/retry-all-pending` | POST | Bulk retry (60s timeout in client) |
+| `/execution/sdu-extraction-executions/mark-all-pending-processing-as-failed` | POST | Queue admin action |
+| `/execution/sdu-extraction-executions/mark-all-processing-as-failed` | POST | Queue admin action |
+| `/execution/sdu-extraction-executions/batch/{batchId}` | DELETE | Delete batch |
+
+**List item fields (typical):** `id`, `fieldConfigId`, `parentConfigId?`, `status` (`completed` \| `failed` \| `pending` \| …), `description` (fail message), `requestBody`, `output?`, `fileSasUri`, `createdOn`, `lastUpdatedOn`, `createdBy` (`sa-…`).
+
+**GET-by-id vs list:** list rows may omit or truncate `output`; use `GET …/{id}` for full extraction JSON.
+
+### Row actions — UI vs API
+
+| UI control | Extra API? | Behavior |
+|------------|------------|----------|
+| **View payload** | **No** | Modal **“SDU Extraction Payload”** — built from row `requestBody` + `fileSasUri` (shows `execution_id`, `field_config_id`, `order_id`, `file_uri`, flags). |
+| **See fail reason** | **No** | Same payload modal on failed rows; failure text is in row `description` / list payload. |
+| **View actions** | Sometimes | Popover (icons); **Share** may `GET …/{id}/share` first. |
+| **Share** | **GET** `…/share` then optional **POST** `…/share` | UI checks share status first; POST is used to enable/create share when needed. |
+| **Retry** | **POST** `…/{id}/retry` | Failed rows only. |
+| **Delete** | **DELETE** `…/{id}` | `deleteDocumentExtractionOutput` in source. |
+| **Edit / discard output** | **PATCH** `…/edited-output` (+ `/discard`) | From output modal — not row list load. |
+| **Disable share** | **DELETE** `…/{id}/share` | After share enabled. |
+| **Export selected** / row export | **POST** `…/sdu-export-data-executions` | Returns downloadable `.xlsx` URL. |
+
+**Toolbar (Extractions):** **Columns**, **Advanced filters** (date range, field config ID, status, created/last updated), **More Actions**, **Export selected** — filtered list re-fetches `GET …/sdu-extraction-executions` + `…/records/count` with query params.
+
+**No extra Agents/SDU calls** for Results browsing — only `uat.api…/execution/*`.
 
 ---
 

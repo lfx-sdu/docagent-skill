@@ -1,4 +1,4 @@
-# USERFLOW — Check DocuAgent results
+# USERFLOW — Check results and run extraction
 
 **Agents:** read `skills/docagent-results/SKILL.md` first.
 
@@ -62,6 +62,40 @@ Poll 2–5s until terminal. For full `output` → Flow B `GET …/sdu-extraction
 
 1. `POST …/sdu-extraction-executions/{id}/share` → `shareUrl`
 2. Reader: `/share/{token}` or `GET …/execution/public/sdu-extraction-executions/share/{token}`
+
+---
+
+## Flow E — Document extraction (`/document-extraction`)
+
+UI page: `https://uat.doc-agent.lfxdigital.app/document-extraction`
+
+### E1. Single upload (1 file)
+
+1. `POST /execution/sdu-extraction-executions` (create execution + `fileSasUri`)
+2. `POST /execution/workflows/blob-upload` (multipart: `sasUri`, `file`)
+3. `GET /execution/sdu-extraction-executions/{id}` every 2s until `output`
+
+Optional body flags:
+- `use_parent_config` (resolve parent from child)
+- `parent_config_id` (explicit parent override, takes precedence)
+- `external_context` (additional context text)
+
+### E2. Merge and trigger (2+ PDF/image files)
+
+1. `POST /execution/sdu-extraction-executions/merge-and-trigger` (multipart; files + fields)
+2. `GET /execution/sdu-extraction-executions/{id}` every 2s until `output`
+
+### E3. Batch upload tab
+
+1. `POST /execution/sdu-extraction-executions/batch`
+2. `POST /execution/sdu-extraction-executions/batch/{batchId}/process`
+3. `GET /execution/sdu-extraction-executions/batch/{batchId}` (poll)
+
+### E4. Failure semantics
+
+- `GET .../{id}` returning **422** = failed execution; stop polling and report failure.
+- If only `execution_id` is available and no bearer token, fallback:
+  `GET https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<id>`
 
 ---
 

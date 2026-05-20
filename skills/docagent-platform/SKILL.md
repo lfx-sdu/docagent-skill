@@ -1,11 +1,22 @@
 ---
 name: docagent-platform
-description: Routes DocuAgent work by intent — product UI (NestJS /execution/* on uat.api.doc-agent.lfxdigital.app) vs Agents OpenAPI (/agents/v1 on api.uat.t4s). Use for auth, async polling, and stack choice. Results browsing and hostnames are in docagent-results.
+description: Router skill for DocuAgent tasks. Decide between product UI/NestJS execution API vs SDU Agents API, pick the right local skill (docagent-results or docagent-extraction), and apply correct auth/host defaults for UAT.
 ---
 
 # DocuAgent platform router
 
-## Hostnames (UAT)
+Use this skill first to route user intent. Then hand off to a domain skill.
+
+## What exists in this repo now
+
+| Local skill | Use for |
+|-------------|---------|
+| `docagent-results` | `/results` page, recent runs, queue, checks, share, retries |
+| `docagent-extraction` | `/document-extraction` page, single upload, merge-and-trigger, batch create/process |
+
+If user asks for domains not yet bundled here (config-agent/search/NER), state they are upstream or create new local skills.
+
+## Hostnames (UAT, verified)
 
 | Surface | URL |
 |---------|-----|
@@ -19,7 +30,7 @@ description: Routes DocuAgent work by intent — product UI (NestJS /execution/*
 
 ---
 
-## Two stacks
+## Two API stacks (do not conflate)
 
 | Stack | Surface | Base (UAT) | Primary auth |
 |-------|---------|------------|--------------|
@@ -32,7 +43,7 @@ OpenAPI wire prefixes: **`Air8`** → `/air8_integration/`, **`ConfigAgent`** �
 
 ---
 
-## Product auth (`axiosInstance.ts`)
+## Auth model (practical)
 
 1. **Team mode:** `Authorization: Bearer <SA key>` + `X-Actor-Email: <email>`  
    **Exceptions** (user JWT required): `/admin/*`, `/teams/:id/sa-key`
@@ -46,7 +57,7 @@ Local dev: frontend `http://localhost:3001/v1`; config may use `NEXT_PUBLIC_CONF
 
 ---
 
-## Automation env (optional, never commit)
+## Optional automation env (never commit)
 
 | Variable | Purpose |
 |----------|---------|
@@ -57,7 +68,21 @@ Local dev: frontend `http://localhost:3001/v1`; config may use `NEXT_PUBLIC_CONF
 
 ---
 
-## Agents API onboarding
+## Routing checklist (what skill to use)
+
+1. **User asks about runs/results/check status/share/queue?**  
+   Use `docagent-results`.
+2. **User asks to extract docs/upload docs/merge files/batch extraction?**  
+   Use `docagent-extraction`.
+3. **User has only `execution_id` and no bearer token?**  
+   Use SDU fallback status poll:
+   `GET /agents/v1/air8_integration/check_execution_status?execution_id=...`
+4. **User asks for Config Agent or search/NER APIs?**  
+   Not in this local bundle; route to upstream skill set or add new local skill.
+
+---
+
+## Agents API onboarding (when needed)
 
 - Examples use **`https://api.uat.t4s.lfxdigital.app/agents/v1`** (no env required for base).
 - Contract: `GET /openapi.json` or [Swagger UI](https://api.uat.t4s.lfxdigital.app/agents/v1/docs).
@@ -68,58 +93,52 @@ curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/health"
 
 ---
 
-## Decision tree
+## Fast playbooks
 
-0. **Results / recent runs / queue** → `docagent-results`  
-   - Human: `https://uat.doc-agent.lfxdigital.app/results`  
-   - curl: `uat.api…/v1/execution/sdu-*` + Bearer  
-   - Browser automation: Kimi WebBridge when agent DNS fails  
-   - `execution_id` only: SDU `check_execution_status`
-1. **Extract / validate** → `docagent-extraction`
-2. **Content checks** → `docagent-content-check`
-3. **Export Excel** → `docagent-export-results`
-4. **Config chat / jobs** → `docagent-config-agent` + `X-API-Key`
-5. **Search** → `docagent-search`
-6. **NER** → `docagent-ner`
-7. **Health / KPIs** → `docagent-admin-kpis`
+### Results-oriented request
 
----
+Use `docagent-results` with this order:
+1. `curl` on `uat.api.../v1/execution/...` if bearer exists.
+2. If agent DNS/auth blocks, use browser/Kimi WebBridge on `/results`.
+3. If only `execution_id`, use SDU `check_execution_status`.
 
-## Async polling
+### Extraction-oriented request
 
-| Job | UI interval | Endpoint | Stop when |
-|-----|-------------|----------|-----------|
-| Extraction | 2s | `GET …/sdu-extraction-executions/{id}` | `output` or **422** |
-| Batch | 2s | `GET …/batch/{id}` | complete |
-| Content check | 2s | `GET …/sdu-check-content-executions/{id}` | `output` |
-| Queue dashboard | 15s | `GET …/queue-status` | — |
-| SDU fallback | 2–5s | `check_execution_status` | terminal |
+Use `docagent-extraction`:
+1. Single upload: create → blob upload → poll by id.
+2. Multi-file merge: `merge-and-trigger` → poll by id.
+3. Batch tab: create batch → process batch → poll batch.
 
 ---
 
-## Request discipline
+## Polling defaults
 
-- Bodies from `openapi.json` schemas.
-- Multipart: read OpenAPI `multipart/form-data` — do not guess fields.
-- **422:** read `detail` and fix body.
+| Flow | Interval | Stop condition |
+|------|----------|----------------|
+| Extraction get-by-id | ~2s | `output` present or `422` |
+| Batch get-by-id | ~2s | terminal batch status |
+| Queue dashboard | ~15s | user stops monitoring |
+| SDU fallback status | 2–5s | terminal status |
+
+---
+
+## Practical anti-patterns to avoid
+
+| Bad | Correct |
+|-----|---------|
+| `api.uat.doc-agent...` | `uat.api.doc-agent...` |
+| Using Agents API to list results | Use NestJS `/execution/*` list/count routes |
+| Using `DOCAGENT_AGENTS_API_KEY` for NestJS | Use Bearer token (`sa-…` or JWT) |
+| Assuming empty table means no runs | Check login/session first |
 
 ---
 
 ## Safety
 
-- **DELETE** on `/search_integration/*/{search_id}` — confirm with user.
-- Do not log API keys or full document payloads.
+- Never commit `.env` or service keys.
+- Redact bearer/API keys in transcripts and copied logs.
+- Confirm destructive actions before running `DELETE` or bulk admin mutation endpoints.
 
----
-
-## Endpoint coverage (Agents OpenAPI)
-
-| Group | Skill(s) |
-|-------|----------|
-| Health | `docagent-admin-kpis` |
-| Document processing | `docagent-extraction`, `docagent-content-check`, `docagent-results` (SDU status) |
-| ConfigAgent | `docagent-config-agent`, `docagent-file-prep` |
-| LFSearch | `docagent-search` |
-| NER | `docagent-ner` |
-
-**Product Results** (not in Agents Swagger): NestJS `/execution/*` on **`uat.api.doc-agent.lfxdigital.app`** — see `docagent-results`.
+For endpoint-level details, use:
+- `docagent-results` for `/results` and execution monitoring
+- `docagent-extraction` for `/document-extraction` flows

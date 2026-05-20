@@ -19,8 +19,9 @@ Skills are aligned with the **DocuAgent frontend** (`doc-agent/frontend`): Resul
 | [`docagent-platform`](skills/docagent-platform/SKILL.md) | Routing by intent, auth (`X-API-Key` for ConfigAgent), async polling, OpenAPI tags |
 | [`docagent-results`](skills/docagent-results/SKILL.md) | Checking extraction, batch, and content-check results in the app or via API |
 | [`docagent-extraction`](skills/docagent-extraction/SKILL.md) | Running document extraction from `/document-extraction` (single, merge, batch, poll) |
+| [`docagent-config-updates`](skills/docagent-config-updates/SKILL.md) | Managing `/configurations` updates (field/checker CRUD, clone, reparent, delete) |
 
-Additional domain skills (config agent, search, NER, etc.) may live in the upstream repo; this fork currently keeps platform, results, and extraction guides.
+Additional domain skills (config-agent chat, search, NER, etc.) may live in the upstream repo; this fork currently keeps platform, results, extraction, and configuration-update guides.
 
 ---
 
@@ -89,6 +90,7 @@ npx skills add lfx-sdu/docagent-skill
 ```bash
 npx skills add lfx-sdu/docagent-skill --skill docagent-platform --skill docagent-results
 npx skills add lfx-sdu/docagent-skill --skill docagent-platform --skill docagent-results --skill docagent-extraction
+npx skills add lfx-sdu/docagent-skill --skill docagent-platform --skill docagent-results --skill docagent-extraction --skill docagent-config-updates
 ```
 
 ### Fast setup (ConfigAgent)
@@ -123,8 +125,9 @@ skills/
   docagent-platform/SKILL.md   # Router and API discipline
   docagent-results/SKILL.md    # Results UI + execution API + agent playbook
   docagent-extraction/SKILL.md # Document extraction flow (/document-extraction)
+  docagent-config-updates/SKILL.md # Configuration CRUD flow (/configurations)
 README.md
-USERFLOW.md                    # Step-by-step: results + extraction (agent-first)
+USERFLOW.md                    # Step-by-step: results + extraction + config updates
 ```
 
 ### Troubleshooting agent confusion

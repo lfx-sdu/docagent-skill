@@ -13,6 +13,7 @@ Use this skill first to route user intent. Then hand off to a domain skill.
 |-------------|---------|
 | `docagent-results` | `/results` page, recent runs, queue, checks, share, retries |
 | `docagent-extraction` | `/document-extraction` page, single upload, merge-and-trigger, batch create/process |
+| `docagent-config-updates` | `/configurations` page, field/checker config CRUD, clone, reparent |
 
 If user asks for domains not yet bundled here (config-agent/search/NER), state they are upstream or create new local skills.
 
@@ -74,10 +75,12 @@ Local dev: frontend `http://localhost:3001/v1`; config may use `NEXT_PUBLIC_CONF
    Use `docagent-results`.
 2. **User asks to extract docs/upload docs/merge files/batch extraction?**  
    Use `docagent-extraction`.
+3. **User asks to create/update/delete field/checker configs?**  
+   Use `docagent-config-updates`.
 3. **User has only `execution_id` and no bearer token?**  
    Use SDU fallback status poll:
    `GET /agents/v1/air8_integration/check_execution_status?execution_id=...`
-4. **User asks for Config Agent or search/NER APIs?**  
+4. **User asks for Config Agent chat or search/NER APIs?**  
    Not in this local bundle; route to upstream skill set or add new local skill.
 
 ---
@@ -105,9 +108,10 @@ Use `docagent-results` with this order:
 ### Extraction-oriented request
 
 Use `docagent-extraction`:
-1. Single upload: create → blob upload → poll by id.
-2. Multi-file merge: `merge-and-trigger` → poll by id.
-3. Batch tab: create batch → process batch → poll batch.
+1. **`field_config_id` first** — then list valid **Country** (`nation`) and **Document type** (`possible_doc_type`) from **that** config’s `fieldConfig` (not ISO codes; not values from another config).
+2. Single upload: create → blob upload → poll by id.
+3. Multi-file merge: `merge-and-trigger` → poll by id.
+4. Batch tab: create batch → process batch → poll batch.
 
 ---
 
@@ -130,6 +134,7 @@ Use `docagent-extraction`:
 | Using Agents API to list results | Use NestJS `/execution/*` list/count routes |
 | Using `DOCAGENT_AGENTS_API_KEY` for NestJS | Use Bearer token (`sa-…` or JWT) |
 | Assuming empty table means no runs | Check login/session first |
+| Reusing `nation` / `possible_doc_type` across configs | Re-list pairs per `field_config_id` (`CN` ≠ `china` ≠ `General`) |
 
 ---
 

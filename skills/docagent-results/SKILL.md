@@ -1,213 +1,204 @@
 ---
 name: docagent-results
-description: Check DocuAgent extraction, batch, and content-check results. Use when the user says "check results", "see my extraction", "latest runs", "recent runs", "list extractions", "is it done", "find order X", or "results page". There is NO list-of-runs on Agents / SDU OpenAPI — browsing recent runs is NestJS GET /execution/sdu-extraction-executions + Bearer JWT (or team SA + X-Actor-Email), same as the /results UI; with only execution_id and no JWT, poll SDU check_execution_status. Never say only check_execution_status exists without also giving the NestJS list option. Never refuse with "I can't pull results from this workspace" when an id or token can be used. For DNS or 401, use the connectivity table in this skill body.
+description: Check DocuAgent extraction, batch, and content-check results. Use when the user says "check results", "see my extraction", "latest runs", "recent runs", "list extractions", "is it done", "find order X", or "results page". UAT NestJS base is https://uat.api.doc-agent.lfxdigital.app/v1 (not api.uat.doc-agent). Prefer browser/Kimi WebBridge on uat.doc-agent.lfxdigital.app/results when the agent host cannot resolve the API, or curl with DOCAGENT_BEARER_TOKEN (service key). Agents OpenAPI has no run list; with only execution_id use SDU check_execution_status. Never refuse with "I can't pull results from this workspace".
 ---
 
 # Check results (DocuAgent)
 
-**Source of truth for product UX:** `doc-agent/frontend` — especially `/results`, `app/services/results/`, `app/utils/axiosInstance.ts`. Canonical product map: `doc-agent/setup/docs/guides/USERFLOW.md`.
+**Source of truth for product UX:** `doc-agent/frontend` — `/results`, `app/services/results/`, `app/utils/axiosInstance.ts`.
+
+## Hostnames (do not swap)
+
+| Role | UAT | Prod (typical) |
+|------|-----|----------------|
+| **Web app** | `https://uat.doc-agent.lfxdigital.app` | `https://doc-agent.lfxdigital.app` (or tenant URL) |
+| **NestJS execution API** | `https://uat.api.doc-agent.lfxdigital.app/v1` | `https://api.doc-agent.lfxdigital.app/v1` |
+
+**Common mistake:** `https://api.uat.doc-agent.lfxdigital.app` — **does not resolve** (wrong subdomain order). The live UAT API uses **`uat.api`**, not `api.uat`.
+
+**Optional `.env` (never commit):**
+
+```env
+DOCAGENT_BEARER_TOKEN=<service key from /login, sa-…>
+DOCAGENT_NESTJS_BASE_URL=https://uat.api.doc-agent.lfxdigital.app/v1
+DOCAGENT_ACTOR_EMAIL=<email>   # team SA only
+```
+
+`DOCAGENT_AGENTS_API_KEY` is **Config Agent only** (`/config_integration/*`) — not for Results.
+
+---
 
 ## Two stacks (do not conflate)
 
 | Stack | Who uses it | Base (UAT) | Auth |
 |-------|-------------|------------|------|
-| **Product / NestJS execution API** | Web app, automation with JWT | `NEXT_PUBLIC_DEV_API` → e.g. `https://api.uat.doc-agent.lfxdigital.app/v1` | MSAL Bearer JWT, **service key** (login paste), or **team SA** + `X-Actor-Email` |
-| **Agents / SDU OpenAPI** | Config Agent, integrators, **agents with only `execution_id`** | `https://api.uat.t4s.lfxdigital.app/agents/v1` | `X-API-Key` on `/config_integration/*` only; **`check_execution_status` has no auth** |
+| **Product / NestJS** | Web app, `curl`, automation | `https://uat.api.doc-agent.lfxdigital.app/v1` | Bearer: MSAL JWT, **service key** (`sa-…`), or team SA + `X-Actor-Email` |
+| **Agents / SDU OpenAPI** | Config Agent; **status-only** agent shortcut | `https://api.uat.t4s.lfxdigital.app/agents/v1` | `X-API-Key` on `/config_integration/*` only; **`check_execution_status` has no auth** |
 
-The **Results UI never calls** `/agents/v1/air8_integration/*`. It lists and polls **`/execution/*`** on the NestJS gateway.
+The **Results UI never calls** `/agents/v1/air8_integration/*`. It uses **`/execution/*`** on the NestJS gateway above.
 
-`DOCAGENT_AGENTS_API_KEY` is **Config Agent only** — not for listing Results rows.
+---
 
-### If the user hits DNS / 401 / “empty” data (read before giving up)
+## Three ways to get recent runs (pick one)
+
+| Priority | When | How |
+|----------|------|-----|
+| **1 — Browser** | User has Chrome + WebBridge; or wrong DNS on agent host | Open `https://uat.doc-agent.lfxdigital.app/results` (Kimi WebBridge: navigate → sign in with service key if needed → read table or use `network` tool on `uat.api` XHRs). **Unauthenticated UI shows empty / login — not “no runs”.** |
+| **2 — curl** | `DOCAGENT_BEARER_TOKEN` or JWT; host resolves | `GET {DOCAGENT_NESTJS_BASE_URL}/execution/sdu-extraction-executions?page=0&size=50&sortBy=createdOn&sortOrder=desc` + `Authorization: Bearer …` |
+| **3 — SDU poll** | Only `execution_id`, no bearer | `GET …/air8_integration/check_execution_status?execution_id=` — **no list** |
+
+Do **not** use `uat.doc-agent…/v1/execution/*` — that URL is the **Next.js frontend**, not the API (returns HTML).
+
+---
+
+## Network-verified: Results page load (UAT)
+
+Captured from `https://uat.doc-agent.lfxdigital.app/results` (Extractions tab). All go to **`uat.api.doc-agent.lfxdigital.app`**.
+
+| Call | Method | Path |
+|------|--------|------|
+| Auth probe | GET | `/execution/admin/auth/status` |
+| List (50, `createdOn` desc) | GET | `/execution/sdu-extraction-executions?sortOrder=desc&page=0&size=50&sortBy=createdOn` |
+| Pagination total | GET | `/execution/sdu-extraction-executions/records/count` |
+| Job uptime banner | GET | `/execution/sdu-extraction-executions/me/job-uptime?days=14` |
+
+**Other tabs (same API host):**
+
+| Tab | `?tab=` | Extra GETs |
+|-----|---------|------------|
+| Batches | `batches` | `/execution/sdu-extraction-executions/batch` |
+| Checks | `orders` | `/execution/sdu-check-content-executions`, `…/records/count` |
+| Queue | `queue` | `/execution/sdu-extraction-executions/queue-status` |
+
+List response is a **JSON array** of executions (`id`, `status`, `requestBody`, `output`, `createdOn`, …). UI maps `status` to COMPLETED / FAILED / QUEUED, etc.
+
+---
+
+## Connectivity troubleshooting
 
 | Symptom | Meaning | What to do |
 |--------|---------|------------|
-| **`NXDOMAIN` or timeout** on `api.uat.doc-agent.lfxdigital.app` | This client often cannot resolve the **NestJS** host (VPN/DNS) | State the limit plainly. **Do not** conclude “there is no API to list runs.” Offer **/results** in the browser, **or** same list `curl` on the user’s machine, **or** **`https://api.doc-agent.lfxdigital.app/v1`** if their tenant/prod token targets prod. **SDU** `api.uat.t4s.lfxdigital.app` may still answer `check_execution_status` when the user has `execution_id`. |
-| **`401 Invalid service token`** on NestJS `/execution/*` | Wrong/expired Bearer, wrong environment, or using ConfigAgent key as Bearer | `DOCAGENT_AGENTS_API_KEY` is **not** a NestJS Bearer. User needs MSAL JWT, **service key** from `/login`, or **team SA** + `X-Actor-Email` for the **same** base URL (UAT vs prod). |
-| **`.env` only has Agents API key** | Enough for Config Agent paths + SDU poll | For **latest runs**, request a **Bearer** (paste once) or use the **Results UI** — not “nothing works.” |
-| **“Only SDU / check_execution_status exists”** | Omission | **Agents OpenAPI** has no tenant-wide **list**. **NestJS** **`GET /execution/sdu-extraction-executions`** implements “latest runs”; say both. |
-
-**Caching or extra repo config does not fix DNS or tokens.** Optional automation only: user may set **`DOCAGENT_NESTJS_BASE_URL`** (when UAT hostname is wrong for their network) and a short-lived **`DOCAGENT_BEARER_TOKEN`** for scripts — never commit; renew on 401.
+| **NXDOMAIN** on `api.uat.doc-agent…` | Wrong hostname | Use **`uat.api.doc-agent.lfxdigital.app`**, or browser/WebBridge on `uat.doc-agent…/results`. |
+| **401** on `api.doc-agent…` with UAT `sa-…` token | Token/env mismatch | Use **UAT** API base; prod token for prod only. |
+| **Empty table** in browser | Not signed in | Sign in (Azure / email / **service key** on `/login`). |
+| **`.env` only has `DOCAGENT_AGENTS_API_KEY`** | Config Agent only | Add **`DOCAGENT_BEARER_TOKEN`** (service key) for NestJS, or use browser. |
+| Agent says “no list API” | Omission | NestJS list exists; SDU has status-only. |
 
 ---
 
 ## Agent playbook (required)
 
-When the user asks to **check results**, **recent runs**, **see an extraction**, or **is it done**:
+When the user asks for **recent runs**, **check results**, or **is it done**:
 
-1. **Do not** open with "I can't pull your results from here" or blame the skills repo.
-2. **Pick path by what you have** (see decision table below) — run the call, interpret JSON, summarize.
-3. **If they gave `execution_id`** (or it appears in chat/logs) and you have **no Bearer JWT**: poll SDU immediately (no Azure login, no API key):
+1. **Do not** open with “I can’t pull results from this workspace.”
+2. **Try curl first** if `DOCAGENT_BEARER_TOKEN` is available — base **`https://uat.api.doc-agent.lfxdigital.app/v1`** (or `DOCAGENT_NESTJS_BASE_URL`).
+3. **If API host fails from agent** → **Kimi WebBridge** (or tell user): `https://uat.doc-agent.lfxdigital.app/results`; service-key login; read table or capture `uat.api` network list.
+4. **`execution_id` only, no bearer** → SDU `check_execution_status` immediately (no API key).
+5. **`order_id` only** → list with bearer + filter `orderId`, or browser filter on Results.
 
 ```bash
-curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<execution_id>"
+# Recent extractions (UAT) — correct host
+curl -sS -H "Authorization: Bearer $DOCAGENT_BEARER_TOKEN" \
+  "${DOCAGENT_NESTJS_BASE_URL:-https://uat.api.doc-agent.lfxdigital.app/v1}/execution/sdu-extraction-executions?page=0&size=50&sortBy=createdOn&sortOrder=desc"
 ```
 
-This is an **agent shortcut**. The **product UI** polls `GET {DEV_API}/execution/sdu-extraction-executions/{id}` every **2s** until `output` exists (or **422** = failed).
+```bash
+# SDU status only (no list, no auth)
+curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<id>"
+```
 
-4. **If they want recent runs / browse by order** and can supply **Bearer JWT** (or team SA + actor email): use NestJS list API (matches the Results page).
-5. **If they gave `order_id` but no `execution_id` and no JWT**: ask for **one execution id** from the Results row or trigger email, **or** guide them to `/results` in the browser. Do not stop after auth lecture.
-6. **DNS errors** on `api.uat.doc-agent.lfxdigital.app`: note the limit; **still use** `api.uat.t4s.lfxdigital.app` for `check_execution_status` when you have `execution_id`.
+**UI polling** (not SDU): `GET …/execution/sdu-extraction-executions/{id}` every **2s** until `output` or **422**.
 
 ### Anti-patterns
 
 | Bad | Do instead |
 |-----|------------|
-| "This workspace only has skills + API key" | Poll SDU if you have `execution_id`; list NestJS if you have Bearer |
-| "Results require Azure AD, not that key" | Keys are unrelated; SDU status GET needs neither key nor JWT |
-| "Send me execution id for the curl command" | **Run** the request and interpret the response |
-| Tell user UI uses `check_execution_status` | UI uses NestJS GET-by-id; SDU poll is agent fallback |
-| "There is no API for latest runs, only execution_id" | Agents OpenAPI has no list; **NestJS** has `GET …/sdu-extraction-executions` — same as Results |
+| `api.uat.doc-agent…` in curl | `uat.api.doc-agent…` |
+| `curl` to `uat.doc-agent…/v1/execution/*` | API host is `uat.api…` |
+| “No API for latest runs” | NestJS list + browser table |
+| “Requires Azure, not service key” | Service key **is** Bearer on NestJS |
+| Empty UI = no data | Login first |
 
 ---
 
 ## Results in the web app (`/results`)
 
-**Post-login default:** MSAL landing on `/` redirects to **`/results`** unless `returnUrl` / trial deep link applies.
+**URL:** `https://uat.doc-agent.lfxdigital.app/results` (UAT)
 
-### Tabs (URL `?tab=`)
+**Post-login default:** `/results` unless `returnUrl` / trial deep link.
 
-| `?tab=` | UI label | Content |
-|---------|----------|---------|
-| `documents` (default) | **Extractions** | Single-document runs |
-| `batches` | **Batches** | Multi-file batch jobs |
-| `orders` | **Checks** | Content-check runs |
-| `queue` | **Queue** | Live queue dashboard |
+### Tabs (`?tab=`)
 
-Valid keys: `documents | batches | orders | queue`. Invalid tab → normalized to `documents`.
+| `?tab=` | Label | Content |
+|---------|-------|---------|
+| `documents` (default) | Extractions | Single-document runs |
+| `batches` | Batches | Batch jobs |
+| `orders` | Checks | Content-check runs |
+| `queue` | Queue | Live queue |
 
-**Note:** There is **no Exports tab** on `/results`. Excel export is a **row action** (`POST …/sdu-export-data-executions`).
+**No Exports tab** — Excel is a row action (`POST …/sdu-export-data-executions`).
 
-### Extractions tab — browse recent runs
+### Extractions tab
 
-- Default: **page size 50**, sort **`createdOn` desc**
-- Filters debounce **500ms**; list + **count** API share the same criteria (pagination totals match)
-- **Deep links:** `/results?tab=documents&fieldConfigId=<id>&executionId=<id>` (used after guided trial)
+- **50** rows/page, **`createdOn` desc**
+- Filters debounce **500ms**; list + **count** share criteria
+- Deep link: `/results?tab=documents&fieldConfigId=<id>&executionId=<id>`
 
-| Filter | API param | Notes |
-|--------|-----------|--------|
-| Order ID | `orderId` | |
-| Execution ID | `executionId` | Partial, case-insensitive |
-| Field config | `fieldConfigId` | Exact |
-| Status | `status` | `completed`, `failed`, `pending`, `queued`, `processing` |
-| Date range | `fromDate`, `toDate` | UI maps `created_on_from` / `created_on_to` |
-| Sort | `sortBy`, `sortOrder` | `createdOn` or `lastUpdatedOn` |
+| Filter | API param |
+|--------|-----------|
+| Order ID | `orderId` |
+| Execution ID | `executionId` (partial) |
+| Field config | `fieldConfigId` |
+| Status | `status` |
+| Dates | `fromDate`, `toDate` |
 
-**Status display:** if `status === "pending"` and `queuedAt` is set, UI shows **QUEUED**.
+**Status:** `pending` + `queuedAt` → UI shows **QUEUED**. List does **not** auto-poll — use **Queue** tab or refresh.
 
-**Row actions** (when `output` exists): view/edit output, export Excel, share (completed only), view payload, retry, delete.
+### Polling intervals (UI)
 
-**List does not auto-poll** — in-progress rows stay stale until refresh or user switches filters. Use **Queue** tab for live queue state.
-
-### Above tabs
-
-`GET /execution/sdu-extraction-executions/me/job-uptime?days=14` — refreshes every **60s** (SWR).
-
-### Queue tab
-
-`GET /execution/sdu-extraction-executions/queue-status` every **15s** (pauses when tab hidden).
+| Feature | Interval | Endpoint |
+|---------|----------|----------|
+| Running extraction | 2s | `GET …/sdu-extraction-executions/{id}` |
+| Queue tab | 15s | `GET …/queue-status` |
+| Job uptime | 60s | `GET …/me/job-uptime?days=14` |
 
 ---
 
-## NestJS execution API (what the UI calls)
+## NestJS execution API reference
 
 **Auth** (same as `axiosInstance.ts`):
 
-1. **Team mode:** `Authorization: Bearer <service-account-key>` + `X-Actor-Email: <user email>`  
-   Skip team SA for `/admin/*` and cross-team `/teams/:id/sa-key` — use user JWT.
-2. **User mode:** `Authorization: Bearer <MSAL ID token>` (or service key from `/login`)
-3. **Public (no bearer):** `GET …/execution/public/sdu-extraction-executions/share/{token}`
+1. **Team:** `Authorization: Bearer <SA>` + `X-Actor-Email`
+2. **User / service key:** `Authorization: Bearer <token>`
+3. **Public:** `GET …/execution/public/sdu-extraction-executions/share/{token}`
 
-| Environment | Base |
-|-------------|------|
-| UAT | `https://api.uat.doc-agent.lfxdigital.app/v1` |
-| Local frontend default | `http://localhost:3001/v1` |
-
-### List recent extractions
+### Core endpoints
 
 ```http
 GET {base}/execution/sdu-extraction-executions?page=0&size=50&sortBy=createdOn&sortOrder=desc
-Authorization: Bearer <token>
-```
-
-Optional filters: `orderId`, `executionId`, `fieldConfigId`, `status`, `fromDate`, `toDate`.
-
-Count (matches filters):
-
-```http
-GET {base}/execution/sdu-extraction-executions/records/count?...
-```
-
-### One extraction (UI polling target)
-
-```http
 GET {base}/execution/sdu-extraction-executions/{id}
-Authorization: Bearer <token>
+GET {base}/execution/sdu-extraction-executions/records/count
+GET {base}/execution/sdu-extraction-executions/batch
+GET {base}/execution/sdu-check-content-executions
+GET {base}/execution/sdu-extraction-executions/queue-status
+GET {base}/execution/admin/auth/status
 ```
-
-- Poll every **2s** while running until `output` is present
-- **422** → treat as failed (UI stops polling)
-- Response includes `status`, `requestBody`, `output`, `queuedAt`, `fileSasUri`, `isShared`
-
-### Content checks
-
-```http
-GET {base}/execution/sdu-check-content-executions?page=0&size=5
-GET {base}/execution/sdu-check-content-executions/{id}
-GET {base}/execution/sdu-check-content-executions/records/count
-```
-
-### Batches
-
-```http
-GET {base}/execution/sdu-extraction-executions/batch?page&size
-GET {base}/execution/sdu-extraction-executions/batch/{batchId}
-```
-
-### Other Results endpoints
 
 | Action | Method | Path |
 |--------|--------|------|
-| Retry one | POST | `/execution/sdu-extraction-executions/{id}/retry` |
-| Retry all pending | POST | `/execution/sdu-extraction-executions/retry-all-pending` |
-| Edit output | PATCH | `/execution/sdu-extraction-executions/{id}/edited-output` |
-| Discard edits | PATCH | `/execution/sdu-extraction-executions/{id}/edited-output/discard` |
-| Delete | DELETE | `/execution/sdu-extraction-executions/{id}` |
-| Export Excel | POST | `/execution/sdu-export-data-executions` body `{ execution_id }` |
-| Queue status | GET | `/execution/sdu-extraction-executions/queue-status` |
-| My job uptime | GET | `/execution/sdu-extraction-executions/me/job-uptime?days=14` |
+| Retry | POST | `…/sdu-extraction-executions/{id}/retry` |
+| Export Excel | POST | `…/sdu-export-data-executions` body `{ execution_id }` |
+| Share | POST | `…/sdu-extraction-executions/{id}/share` |
 
 ---
 
-## SDU status poll (Agents API) — agent shortcut only
+## SDU status poll (agent shortcut only)
 
-**Not used by the Results UI.** Use when you have `execution_id` but no JWT.
+Not used by Results UI.
 
 ```bash
-curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<execution_id>"
+curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<id>"
 ```
-
-- **404 / 500 "No execution found"** → wrong id or environment
-- **Still running** → backoff 2–5s, poll again
-- **Completed** → summarize returned fields; for full `output` / preview, use NestJS GET-by-id or Results UI
-
-NestJS persists the MongoDB record the UI shows; SDU poll reads the pipeline directly.
-
----
-
-## Share links
-
-1. Enable: `POST /execution/sdu-extraction-executions/{id}/share` → `{ shareToken, shareUrl, expiresAt? }`
-2. Public read: `GET /execution/public/sdu-extraction-executions/share/{token}` (no auth)
-3. App route: `/share/{token}` — prefers `editedOutput` over `output`
-
-Do not invent share URLs; use `shareUrl` from the API.
-
----
-
-## Output shape (what users see in modal)
-
-Per document in `output`: Order ID, Nation, Doc Type, Doc ID, Result, Reason, extracted fields, `human_validate_status`, timestamps. List rows also expose `fieldConfigId`, `createdOn`, `lastUpdatedOn`, `createdBy`, `requestBody` (order_id, file_name, nation, doc types).
 
 ---
 
@@ -215,9 +206,8 @@ Per document in `output`: Order ID, Nation, Doc Type, Doc ID, Result, Reason, ex
 
 | User wants… | Action |
 |-------------|--------|
-| Browse recent runs in product | `/results` → Extractions tab (or Bearer list GET above) |
-| Status of known run, agent has id only | SDU `check_execution_status` |
-| Full output + list by order | NestJS `/execution/sdu-extraction-executions` + Bearer |
-| Live queue / capacity | `/results?tab=queue` or `queue-status` GET |
-| Public read-only link | `/share/{token}` or public share GET |
-| Config / threads / global config jobs | `docagent-config-agent` + `X-API-Key` |
+| Recent runs | Browser `/results` **or** `GET …/sdu-extraction-executions` on **`uat.api…`** |
+| Known `execution_id`, no JWT | SDU `check_execution_status` |
+| Full output | NestJS `GET …/{id}` or UI row |
+| Queue | `?tab=queue` or `queue-status` |
+| Config jobs | `docagent-platform` + `X-API-Key` |

@@ -1,8 +1,10 @@
 # USERFLOW — Check DocuAgent results
 
-**Agents:** read `skills/docagent-results/SKILL.md` first. **Do not** refuse results when you can call an API.
+**Agents:** read `skills/docagent-results/SKILL.md` first.
 
-**Product source of truth:** `doc-agent/frontend` + `doc-agent/setup/docs/guides/USERFLOW.md`
+**UAT API base (network-verified):** `https://uat.api.doc-agent.lfxdigital.app/v1` — **not** `api.uat.doc-agent…` (NXDOMAIN).
+
+**UAT web app:** `https://uat.doc-agent.lfxdigital.app/results`
 
 ---
 
@@ -10,88 +12,71 @@
 
 | Stack | Base (UAT) | Used for Results |
 |-------|------------|------------------|
-| **NestJS (product)** | `https://api.uat.doc-agent.lfxdigital.app/v1` | Yes — list, poll, share |
-| **Agents / SDU** | `https://api.uat.t4s.lfxdigital.app/agents/v1` | Agent-only status poll (`check_execution_status`) |
+| **NestJS (product)** | `https://uat.api.doc-agent.lfxdigital.app/v1` | List, poll, share, queue |
+| **Agents / SDU** | `https://api.uat.t4s.lfxdigital.app/agents/v1` | `check_execution_status` only (no list) |
 
-The web app **does not** call Agents API for the Results page.
-
-If **`api.uat.doc-agent.lfxdigital.app` does not resolve** from the agent’s environment (common off VPN), the **list** `curl` still exists for the user’s laptop or for **prod** (`https://api.doc-agent.lfxdigital.app/v1`) with a token issued for that environment. **SDU** (`api.uat.t4s.lfxdigital.app`) may still work for **`check_execution_status`** when you have `execution_id`.
+The web app calls **`uat.api…`**, not the SDU Agents host, for `/results`.
 
 ---
 
-## Flow A — Human: browse recent runs (`/results`)
+## Flow A — Browser (human or Kimi WebBridge)
 
-1. Sign in (Azure AD B2C, email, or service key on `/login`).
-2. Land on **Results** (`/results`) — default post-login destination.
-3. **Extractions** tab (`?tab=documents`, default): recent runs, 50 per page, newest first.
-4. Filter by Order ID, Execution ID (partial), field config, status, date.
-5. Open a **completed** row → view extracted fields and document preview.
-6. Other tabs: **Batches** (`?tab=batches`), **Checks** (`?tab=orders`), **Queue** (`?tab=queue`).
+1. Open `https://uat.doc-agent.lfxdigital.app/results` (or `/login` first).
+2. Sign in: Azure AD, email, or **service key** (`sa-…` on `/login`).
+3. **Extractions** tab: recent runs (50/page, newest first). Empty table before login ≠ no runs.
+4. Other tabs: `?tab=batches|orders|queue`.
 
-**Deep link after trial:** `/results?tab=documents&fieldConfigId=<id>&executionId=<id>`
-
-**Exports:** no Exports tab on `/results` — use row **Export Excel** action.
+**Agent tip:** use WebBridge `network` on reload — XHRs go to `uat.api.doc-agent.lfxdigital.app/v1/execution/…`.
 
 ---
 
-## Flow B — Agent has `execution_id` only (no JWT)
-
-Poll SDU (no API key, no Azure login):
+## Flow B — curl with service key (automation)
 
 ```bash
-curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<execution_id>"
+set -a && source .env && set +a   # DOCAGENT_BEARER_TOKEN=sa-…
+
+curl -sS -H "Authorization: Bearer $DOCAGENT_BEARER_TOKEN" \
+  "https://uat.api.doc-agent.lfxdigital.app/v1/execution/sdu-extraction-executions?page=0&size=50&sortBy=createdOn&sortOrder=desc"
 ```
 
-1. Report `status`; summarize output fields if present.
-2. If still running, wait 2–5s and poll again.
-3. For full `output` / preview → NestJS GET-by-id (Flow C) or Results UI (Flow A).
+Optional: `DOCAGENT_NESTJS_BASE_URL`, `DOCAGENT_ACTOR_EMAIL` (team SA).
 
-**Note:** the product UI polls `GET …/execution/sdu-extraction-executions/{id}` every **2s**, not this SDU route.
+**Wrong hosts:**
+
+- `api.uat.doc-agent…` → NXDOMAIN
+- `uat.doc-agent…/v1/execution/…` → HTML from Next.js, not JSON API
 
 ---
 
-## Flow C — Automation: list or full record (Bearer JWT)
-
-**Base (UAT):** `https://api.uat.doc-agent.lfxdigital.app/v1`
-
-**Team mode** (matches frontend):
-
-```http
-Authorization: Bearer <service-account-key>
-X-Actor-Email: <user@email>
-```
-
-**User mode:**
-
-```http
-Authorization: Bearer <MSAL ID token>
-```
-
-### Recent extractions
+## Flow C — Agent has `execution_id` only (no JWT)
 
 ```bash
-curl -sS -H "Authorization: Bearer <token>" \
-  "https://api.uat.doc-agent.lfxdigital.app/v1/execution/sdu-extraction-executions?page=0&size=50&sortBy=createdOn&sortOrder=desc"
+curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<id>"
 ```
 
-### Single run (same as UI polling)
-
-```bash
-curl -sS -H "Authorization: Bearer <token>" \
-  "https://api.uat.doc-agent.lfxdigital.app/v1/execution/sdu-extraction-executions/<id>"
-```
-
-Poll every **2s** until `output` exists or **422** (failed).
-
-`DOCAGENT_AGENTS_API_KEY` is **not** used on these routes.
+Poll 2–5s until terminal. For full `output` → Flow B `GET …/sdu-extraction-executions/{id}` or Flow A.
 
 ---
 
 ## Flow D — Share link (public)
 
-1. Owner: `POST …/execution/sdu-extraction-executions/{id}/share` → `shareUrl`
-2. Reader: open `/share/{token}` (no login)
-3. API: `GET …/execution/public/sdu-extraction-executions/share/{token}`
+1. `POST …/sdu-extraction-executions/{id}/share` → `shareUrl`
+2. Reader: `/share/{token}` or `GET …/execution/public/sdu-extraction-executions/share/{token}`
+
+---
+
+## Results page — network on load (UAT)
+
+| GET | Path |
+|-----|------|
+| Auth | `/execution/admin/auth/status` |
+| List | `/execution/sdu-extraction-executions?sortOrder=desc&page=0&size=50&sortBy=createdOn` |
+| Count | `/execution/sdu-extraction-executions/records/count` |
+| Uptime | `/execution/sdu-extraction-executions/me/job-uptime?days=14` |
+
+**Batches:** `…/sdu-extraction-executions/batch`  
+**Checks:** `…/sdu-check-content-executions` (+ count)  
+**Queue:** `…/queue-status`
 
 ---
 
@@ -99,19 +84,20 @@ Poll every **2s** until `output` exists or **422** (failed).
 
 | Route | Auth |
 |-------|------|
-| Results UI `/results` | Azure AD / email / service key session |
-| `GET …/execution/sdu-extraction-executions` | Bearer JWT or team SA + `X-Actor-Email` |
-| `GET …/air8_integration/check_execution_status` | None (agent shortcut) |
-| `GET/POST …/config_integration/*` | `X-API-Key: $DOCAGENT_AGENTS_API_KEY` |
-| Public share GET | None |
+| Results UI | Session after Azure / email / service key |
+| NestJS `/execution/*` | Bearer (`sa-…` or JWT); team SA + `X-Actor-Email` |
+| SDU `check_execution_status` | None |
+| `/config_integration/*` | `X-API-Key: $DOCAGENT_AGENTS_API_KEY` |
 
 ---
 
-## Preflight (SDU)
+## Preflight
 
 ```bash
+curl -sS -o /dev/null -w "%{http_code}\n" "https://api.uat.t4s.lfxdigital.app/agents/v1/health"
 curl -sS -o /dev/null -w "%{http_code}\n" \
-  "https://api.uat.t4s.lfxdigital.app/agents/v1/health"
+  -H "Authorization: Bearer $DOCAGENT_BEARER_TOKEN" \
+  "https://uat.api.doc-agent.lfxdigital.app/v1/execution/admin/auth/status"
 ```
 
-Expect `200`.
+Expect `200` when token and host match UAT.

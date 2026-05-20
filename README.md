@@ -27,8 +27,11 @@ Additional domain skills (extraction, config agent, search, NER, etc.) may live 
 
 | Stack | UAT base | Used for |
 |-------|----------|----------|
-| **Product / NestJS** | `https://api.uat.doc-agent.lfxdigital.app/v1` (`NEXT_PUBLIC_DEV_API` in frontend) | Results list, poll by id, share, queue |
+| **Web app** | `https://uat.doc-agent.lfxdigital.app` | `/results`, login, UI |
+| **Product / NestJS** | `https://uat.api.doc-agent.lfxdigital.app/v1` | Results list, poll by id, share, queue |
 | **Agents / SDU** | `https://api.uat.t4s.lfxdigital.app/agents/v1` | Config Agent, `check_execution_status` (agent shortcut) |
+
+**Hostname trap:** `api.uat.doc-agent.lfxdigital.app` does **not** resolve. The live UAT API is **`uat.api.doc-agent…`**, not `api.uat…`.
 
 Agents API:
 
@@ -45,10 +48,11 @@ The **Results UI does not call** Agents API for browsing or polling runs. See `d
 | Variable | Required | Purpose |
 |----------|----------|---------|
 | `DOCAGENT_AGENTS_API_KEY` | For ConfigAgent routes only | Sent as `X-API-Key` on `/config_integration/*` |
+| `DOCAGENT_BEARER_TOKEN` | For Results / NestJS `/execution/*` | Service key (`sa-…`) or JWT — **not** the Agents API key |
 
-**Not** used for `GET /air8_integration/check_execution_status` (no auth on that route in OpenAPI). **Not** a substitute for Bearer JWT on NestJS `/execution/*`.
+**Not** used for `GET /air8_integration/check_execution_status` (no auth). **Not** a substitute: Agents key ≠ NestJS Bearer.
 
-**Automation (optional, never commit):** `DOCAGENT_NESTJS_BASE_URL` if UAT hostname does not resolve from the agent’s network; short-lived `DOCAGENT_BEARER_TOKEN` or service key for list/poll `curl`s. **Caching does not replace VPN, correct DNS, or valid tokens.**
+**Automation (optional, never commit):** `DOCAGENT_NESTJS_BASE_URL` (default UAT: `https://uat.api.doc-agent.lfxdigital.app/v1`), `DOCAGENT_BEARER_TOKEN`, `DOCAGENT_ACTOR_EMAIL` for team SA. Or use **Kimi WebBridge** on `uat.doc-agent…/results` when curl from the agent host fails.
 
 No base URL environment variable is required for standard onboarding — substitute the hostname only for non-UAT integrations.
 
@@ -122,7 +126,7 @@ USERFLOW.md                    # Step-by-step: check results (agent-first)
 
 ### Troubleshooting agent confusion
 
-If an agent claims there is **no API to list “latest runs”** while only mentioning `check_execution_status`, it missed the **NestJS** list (`GET …/execution/sdu-extraction-executions`). Point it at **`skills/docagent-results/SKILL.md`** (connectivity table + playbook). **No repo “cache”** fixes **DNS** (`NXDOMAIN` on NestJS host) or **401** (wrong token type); user needs VPN/prod base, or a valid **Bearer** / service key for that gateway.
+If an agent claims there is **no API to list “latest runs”**, point it at **`skills/docagent-results/SKILL.md`**. Common fixes: use **`uat.api.doc-agent…`** (not `api.uat…`), set **`DOCAGENT_BEARER_TOKEN`**, or open **`/results`** via WebBridge.
 
 ---
 

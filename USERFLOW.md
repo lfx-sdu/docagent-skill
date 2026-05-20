@@ -1,50 +1,95 @@
 # USERFLOW — Check DocuAgent results
 
-**Agents:** read `skills/docagent-results/SKILL.md` first. **Do not** tell the user you cannot access results when you can call SDU with an `execution_id`.
+**Agents:** read `skills/docagent-results/SKILL.md` first. **Do not** refuse results when you can call an API.
 
-**API root (SDU):** `https://api.uat.t4s.lfxdigital.app/agents/v1`
+**Product source of truth:** `doc-agent/frontend` + `doc-agent/setup/docs/guides/USERFLOW.md`
 
 ---
 
-## Flow A — User has `execution_id` (agent in Cursor/CLI)
+## Two API stacks
 
-1. Poll status (no API key, no Azure login):
+| Stack | Base (UAT) | Used for Results |
+|-------|------------|------------------|
+| **NestJS (product)** | `https://api.uat.doc-agent.lfxdigital.app/v1` | Yes — list, poll, share |
+| **Agents / SDU** | `https://api.uat.t4s.lfxdigital.app/agents/v1` | Agent-only status poll (`check_execution_status`) |
+
+The web app **does not** call Agents API for the Results page.
+
+---
+
+## Flow A — Human: browse recent runs (`/results`)
+
+1. Sign in (Azure AD B2C, email, or service key on `/login`).
+2. Land on **Results** (`/results`) — default post-login destination.
+3. **Extractions** tab (`?tab=documents`, default): recent runs, 50 per page, newest first.
+4. Filter by Order ID, Execution ID (partial), field config, status, date.
+5. Open a **completed** row → view extracted fields and document preview.
+6. Other tabs: **Batches** (`?tab=batches`), **Checks** (`?tab=orders`), **Queue** (`?tab=queue`).
+
+**Deep link after trial:** `/results?tab=documents&fieldConfigId=<id>&executionId=<id>`
+
+**Exports:** no Exports tab on `/results` — use row **Export Excel** action.
+
+---
+
+## Flow B — Agent has `execution_id` only (no JWT)
+
+Poll SDU (no API key, no Azure login):
 
 ```bash
 curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<execution_id>"
 ```
 
-2. Interpret JSON: report `status`; if terminal, summarize any output fields returned.
-3. If `processing` / `pending`, wait 2–5s and poll again (reasonable cap).
-4. If user needs document preview or full `output` object and SDU response is minimal → point to **Results UI** or NestJS GET with Bearer (Flow C).
+1. Report `status`; summarize output fields if present.
+2. If still running, wait 2–5s and poll again.
+3. For full `output` / preview → NestJS GET-by-id (Flow C) or Results UI (Flow A).
+
+**Note:** the product UI polls `GET …/execution/sdu-extraction-executions/{id}` every **2s**, not this SDU route.
 
 ---
 
-## Flow B — User has no id (human)
-
-1. Sign in (Azure AD) → **Results** (`/results`).
-2. Tab: **Extractions** | **Batches** | **Checks** | **Queue**.
-3. Filter by Order ID or Execution ID → open **completed** row.
-
----
-
-## Flow C — Automation with full records (Bearer JWT)
+## Flow C — Automation: list or full record (Bearer JWT)
 
 **Base (UAT):** `https://api.uat.doc-agent.lfxdigital.app/v1`
 
-```bash
-curl -sS -H "Authorization: Bearer <token>" \
-  "https://api.uat.doc-agent.lfxdigital.app/v1/execution/sdu-extraction-executions?orderId=ORDER-123"
+**Team mode** (matches frontend):
+
+```http
+Authorization: Bearer <service-account-key>
+X-Actor-Email: <user@email>
 ```
 
-Single run:
+**User mode:**
+
+```http
+Authorization: Bearer <MSAL ID token>
+```
+
+### Recent extractions
+
+```bash
+curl -sS -H "Authorization: Bearer <token>" \
+  "https://api.uat.doc-agent.lfxdigital.app/v1/execution/sdu-extraction-executions?page=0&size=50&sortBy=createdOn&sortOrder=desc"
+```
+
+### Single run (same as UI polling)
 
 ```bash
 curl -sS -H "Authorization: Bearer <token>" \
   "https://api.uat.doc-agent.lfxdigital.app/v1/execution/sdu-extraction-executions/<id>"
 ```
 
+Poll every **2s** until `output` exists or **422** (failed).
+
 `DOCAGENT_AGENTS_API_KEY` is **not** used on these routes.
+
+---
+
+## Flow D — Share link (public)
+
+1. Owner: `POST …/execution/sdu-extraction-executions/{id}/share` → `shareUrl`
+2. Reader: open `/share/{token}` (no login)
+3. API: `GET …/execution/public/sdu-extraction-executions/share/{token}`
 
 ---
 
@@ -52,14 +97,15 @@ curl -sS -H "Authorization: Bearer <token>" \
 
 | Route | Auth |
 |-------|------|
-| `GET …/air8_integration/check_execution_status` | None |
-| `GET …/execution/sdu-extraction-executions` | Bearer JWT |
+| Results UI `/results` | Azure AD / email / service key session |
+| `GET …/execution/sdu-extraction-executions` | Bearer JWT or team SA + `X-Actor-Email` |
+| `GET …/air8_integration/check_execution_status` | None (agent shortcut) |
 | `GET/POST …/config_integration/*` | `X-API-Key: $DOCAGENT_AGENTS_API_KEY` |
-| Results UI `/results` | Azure AD session |
+| Public share GET | None |
 
 ---
 
-## Preflight
+## Preflight (SDU)
 
 ```bash
 curl -sS -o /dev/null -w "%{http_code}\n" \

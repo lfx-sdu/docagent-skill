@@ -6,7 +6,9 @@ Agent skill packs for **DocuAgent** — how to use the product UI, NestJS execut
 
 This repository holds Markdown under `skills/*/SKILL.md`. Skills teach agents which endpoints and workflows to use; they are not Python modules or runnable scripts.
 
-**Agent rule:** When a user asks to check results and provides an **`execution_id`**, poll SDU immediately — do not reply that this repo "only has skills" or that results require Azure AD. See [USERFLOW.md](USERFLOW.md) and `docagent-results`.
+Skills are aligned with the **DocuAgent frontend** (`doc-agent/frontend`): Results at `/results`, NestJS `/execution/*` for list/poll/share, and Agents API only for Config Agent plus the agent-only SDU status poll.
+
+**Agent rule:** When a user asks to check results and provides an **`execution_id`**, poll SDU immediately — do not reply that this repo "only has skills" or that results require Azure AD. For **recent runs** without an id, use NestJS list + Bearer JWT or guide `/results`. See [USERFLOW.md](USERFLOW.md) and `docagent-results`.
 
 ---
 
@@ -21,17 +23,20 @@ Additional domain skills (extraction, config agent, search, NER, etc.) may live 
 
 ---
 
-## Default API root
+## API bases (two stacks)
 
-All Agents API examples use:
+| Stack | UAT base | Used for |
+|-------|----------|----------|
+| **Product / NestJS** | `https://api.uat.doc-agent.lfxdigital.app/v1` (`NEXT_PUBLIC_DEV_API` in frontend) | Results list, poll by id, share, queue |
+| **Agents / SDU** | `https://api.uat.t4s.lfxdigital.app/agents/v1` | Config Agent, `check_execution_status` (agent shortcut) |
 
-`https://api.uat.t4s.lfxdigital.app/agents/v1`
+Agents API:
 
-- **Swagger UI (browser):** [https://api.uat.t4s.lfxdigital.app/agents/v1/docs](https://api.uat.t4s.lfxdigital.app/agents/v1/docs)
+- **Swagger UI:** [https://api.uat.t4s.lfxdigital.app/agents/v1/docs](https://api.uat.t4s.lfxdigital.app/agents/v1/docs)
 - **OpenAPI JSON:** `GET …/openapi.json`
 - Do **not** append `/docs` to `curl` URLs.
 
-DocuAgent **Results** in the product UI use NestJS (`/execution/*`) with Azure AD JWT, not the Agents Swagger. See `docagent-results` for both paths.
+The **Results UI does not call** Agents API for browsing or polling runs. See `docagent-results` for tabs, filters, and auth (MSAL JWT, service key, team SA + `X-Actor-Email`).
 
 ---
 

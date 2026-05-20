@@ -1,3 +1,5 @@
 .env
 skills/.DS_Store
 .DS_Store
+.agents/
+skills-lock.json

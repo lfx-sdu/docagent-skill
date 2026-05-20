@@ -1,13 +1,13 @@
 ---
 name: docagent-platform
-description: Routes DocuAgent Agents API work by OpenAPI tag and user intent. Use when choosing which skill applies, auth (X-API-Key for ConfigAgent), polling async jobs, or staying endpoint-first against https://api.uat.t4s.lfxdigital.app/agents/v1. If the task involves the Next.js app, NestJS execution/config services, or gateway paths—not raw curl—read docagent-integration-architecture first.
+description: Routes DocuAgent Agents API work by OpenAPI tag and user intent. Use when choosing which skill applies, auth (X-API-Key for ConfigAgent only), polling async jobs, or staying endpoint-first against https://api.uat.t4s.lfxdigital.app/agents/v1. For Results UI vs SDU vs NestJS execution paths, use docagent-results.
 ---
 
 # DocuAgent platform (Agents API router)
 
 ## Not just direct HTTP to SDU
 
-The [Agents Swagger UI](https://api.uat.t4s.lfxdigital.app/agents/v1/docs) documents the **SDU FastAPI** service. The **DocuAgent product UI** usually calls **NestJS** (`/execution/*`, `/v1/config/*`) with **Azure AD JWT**; NestJS then calls SDU with `X-API-Key`. Some UI paths (Insights, Config Agent stream in direct mode) call SDU from the browser. Full matrix: **`docagent-integration-architecture`**.
+The [Agents Swagger UI](https://api.uat.t4s.lfxdigital.app/agents/v1/docs) documents the **SDU FastAPI** service. The **DocuAgent product UI** usually calls **NestJS** (`/execution/*`) with **Azure AD JWT**; NestJS orchestrates SDU. **Agents checking a known `execution_id`** should call SDU `check_execution_status` first (see **`docagent-results`**) — not deflect to the UI because only `DOCAGENT_AGENTS_API_KEY` is in `.env`.
 
 OpenAPI wire prefixes: **`Air8`** → `/air8_integration/`, **`ConfigAgent`** → `/config_integration/`, **`LFSearch`** → `/search_integration/`, **`NER`** → `/ner_integration/`.
 
@@ -30,7 +30,7 @@ curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/health"
 
 ## Decision tree (pick domain skill)
 
-0. **Check results / is my job done / Results page** → `docagent-results` (start here for end users).
+0. **Check results / is my job done / Results page** → `docagent-results` (poll SDU when `execution_id` is known).
 1. **Extract / validate documents** (`POST .../validate_and_extract_docs`, execution status) → `docagent-extraction`.
 2. **Content checks / rules** (`POST .../check_doc_content`) → `docagent-content-check`.
 3. **Export dataframe to blob OR extraction Excel URL** (`export_data_to_blob`, `export-extraction-excel`) → `docagent-export-results`.

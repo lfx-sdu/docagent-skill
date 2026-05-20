@@ -1,79 +1,112 @@
 ---
 name: docagent-results
-description: How to check document extraction, batch, and content-check results in DocuAgent. Use when a user says "check results", "see my extraction", "is it done", "find order X", or "results page".
+description: Check DocuAgent extraction, batch, and content-check results. Use when the user says "check results", "see my extraction", "is it done", "find order X", or "results page". Agents must run API calls when they have execution_id; never refuse with "I can't pull results from this workspace".
 ---
 
 # Check results (DocuAgent)
 
-## If you are using the web app
+## Agent playbook (required)
+
+When the user asks to **check results**, **see an extraction**, or **is it done**:
+
+1. **Do not** open with "I can't pull your results from here" or blame the workspace/skills repo.
+2. **If they gave `execution_id`** (or it appears in chat/logs): **call SDU immediately** — no Azure login, no `DOCAGENT_AGENTS_API_KEY` required:
+
+```bash
+curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<execution_id>"
+```
+
+Report `status` back. If `completed` and the response body includes output fields, summarize them. If still running, say so and offer to poll again.
+
+3. **If they gave `order_id` but no `execution_id`**: ask for **one** execution id from the trigger email/UI row, **or** offer the Results UI path below. Do not stop after explaining auth gaps.
+
+4. **`DOCAGENT_AGENTS_API_KEY`** is only for **`/config_integration/*`**. It does **not** list Results rows and is **not** an excuse to skip step 2 when you have `execution_id`.
+
+5. **NestJS Results API** (`GET /execution/sdu-extraction-executions`) needs a **Bearer JWT** (same as the web app). Use it only when the user can supply a token or you are explicitly automating against DocuAgent backend — not as the first reply to "check my results".
+
+6. **DNS / network errors** on `api.uat.doc-agent.lfxdigital.app`: retry or note environment limits; **still use** `api.uat.t4s.lfxdigital.app` for `check_execution_status` when you have `execution_id`.
+
+### Anti-patterns (never do this)
+
+| Bad response | Do instead |
+|--------------|------------|
+| "This workspace only has skills + API key, not your results" | Run `check_execution_status` if you have `execution_id` |
+| "Extraction results live behind Azure AD, not that key" | Keys are unrelated; SDU status GET needs neither key nor JWT |
+| "Send me execution id so I can tell you the curl command" | **Run** the curl (or equivalent) and interpret the JSON |
+| Default to Swagger / "integrators only" | SDU poll is the normal agent path when `execution_id` is known |
+| List UI tabs before trying API when id is already in chat | Poll first, UI second |
+
+---
+
+## Three ways to see results (pick by what you have)
+
+| You have | Auth | What you get |
+|----------|------|----------------|
+| **`execution_id`** | None (SDU OpenAPI has no global `security`) | Pipeline `status` via Agents API — **use this first in agent chats** |
+| **Azure AD session** (human in browser) | User login | Full Results UI: fields, preview, filters — `/results` |
+| **Bearer JWT** + order/execution filters | `Authorization: Bearer …` | Full stored record: `output`, `requestBody`, list/filter — NestJS execution service |
+
+Config Agent (`X-API-Key`) is a **fourth** surface for config chat/jobs only — not for listing extraction results.
+
+---
+
+## SDU status poll (Agents API) — primary for agents
+
+**Endpoint:** `GET /air8_integration/check_execution_status?execution_id=<id>`
+
+**Root:** `https://api.uat.t4s.lfxdigital.app/agents/v1`
+
+```bash
+curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<execution_id>"
+```
+
+Typical response shape: `execution_id`, `status` (`pending` | `processing` | `completed` | `failed`, per deployment).
+
+- **404 / 500 with "No execution found"** → wrong id, typo, or wrong environment (UAT vs prod).
+- **Still running** → backoff 2–5s and poll again; cap total wait per user patience.
+- **Completed** → return status; if the payload includes extracted data, present it. For document preview and validation flags, the **Results UI** or NestJS GET-by-id may still be needed.
+
+This is the **same pipeline** the product uses; the Results page also persists a MongoDB record via NestJS for the UI.
+
+---
+
+## Results in the web app (humans)
 
 1. Sign in to DocuAgent (Azure AD).
 2. Open **Results** (`/results`).
-3. Pick a tab:
-   - **Extractions** — one document / one extraction run
-   - **Batches** — many files submitted together
-   - **Checks** — content-check (rules) runs
-   - **Queue** — what is still waiting or running
+3. Tabs: **Extractions** | **Batches** | **Checks** | **Queue**.
 
-### Find a specific run
-
-On **Extractions**, filter by:
-
-| Filter | Use when |
-|--------|----------|
-| Order ID | You know the business order number |
-| Execution ID | You have the id from a trigger response or email |
-| Field config | You only want runs for one workflow config |
-| Status | You only want `completed`, `failed`, `processing`, etc. |
-| Date range | You know roughly when it ran |
-
-Open a row to see extracted fields, validation flags, and the document preview when available.
-
-### Status meanings (Extractions / Checks)
+Filters on **Extractions**: Order ID, Execution ID, field config, status, date range.
 
 | Status | Meaning |
 |--------|---------|
-| `pending` | Created, not started yet |
+| `pending` | Created, not started |
 | `queued` | Waiting in queue |
-| `processing` | Running now |
-| `completed` | Finished — open the row for output |
-| `failed` | Error — open the row for reason / retry if offered |
+| `processing` | Running |
+| `completed` | Done — open row for output |
+| `failed` | Error — open row for reason |
 
-While status is `pending`, `queued`, or `processing`, refresh the list or wait; the UI loads stored results from DocuAgent when done.
-
-### Share a result
-
-From a completed extraction, use **Share** if the product shows it — that creates a share link (see execution service `POST …/:id/share`). Do not guess share URLs.
+Offer this path when the user has **no** `execution_id` and cannot use Bearer automation.
 
 ---
 
-## If you are an agent helping a logged-in user
+## NestJS execution API (full records, automation)
 
-- Default answer: use **Results** in the app (steps above).
-- Do **not** send them to [T4S Agents Swagger](https://api.uat.t4s.lfxdigital.app/agents/v1/docs) to "check results" — that API is for the processing engine, not the Results screen.
-- Ask for **execution id** or **order id** if they cannot find the row.
-
----
-
-## If you must call the API (automation / scripts)
-
-DocuAgent stores results in the **execution service**. You need a **Bearer token** (same login as the UI), not the Config Agent `X-API-Key`.
-
-**Base URL (examples):**
+**Auth:** `Authorization: Bearer <token>` (UI login JWT — **not** `DOCAGENT_AGENTS_API_KEY`).
 
 | Environment | Base |
 |-------------|------|
-| Local | `http://localhost:3000/v1` |
 | UAT | `https://api.uat.doc-agent.lfxdigital.app/v1` |
+| Local | `http://localhost:3000/v1` |
 
-### List extraction results
+### List extractions
 
 ```http
 GET {base}/execution/sdu-extraction-executions?orderId=ORDER-123&status=completed
 Authorization: Bearer <token>
 ```
 
-Useful query params: `orderId`, `executionId`, `fieldConfigId`, `status`, `fromDate`, `toDate`, `page`, `size`, `sortOrder`.
+Query params: `orderId`, `executionId`, `fieldConfigId`, `status`, `fromDate`, `toDate`, `page`, `size`, `sortOrder`.
 
 ### One extraction by id
 
@@ -82,48 +115,44 @@ GET {base}/execution/sdu-extraction-executions/{id}
 Authorization: Bearer <token>
 ```
 
-Response includes `status`, `requestBody`, and `output` when complete. `202` with a message and no `output` usually means still running.
+Includes `status`, `requestBody`, `output` when complete. `202` without `output` usually means still running.
 
-### List content-check results
+### Content checks
 
 ```http
 GET {base}/execution/sdu-check-content-executions
 Authorization: Bearer <token>
 ```
 
-### List batch results
+### Batches
 
 ```http
 GET {base}/execution/sdu-extraction-executions/batch
 Authorization: Bearer <token>
 ```
 
-### Queue snapshot (current user)
+### Queue (current user)
 
 ```http
 GET {base}/execution/sdu-extraction-executions/queue-status
 Authorization: Bearer <token>
 ```
 
----
-
-## SDU-only polling (integrators, not the Results UI)
-
-If you triggered extraction **directly** on the Agents API and only have `execution_id` from that response:
-
-```bash
-curl -sS "https://api.uat.t4s.lfxdigital.app/agents/v1/air8_integration/check_execution_status?execution_id=<execution_id>"
-```
-
-That returns SDU job status. The **DocuAgent Results page** uses MongoDB records under `/execution/sdu-extraction-executions`, not this GET, unless you are debugging the pipeline itself.
+If this host does not resolve from the agent environment, say so briefly and **fall back** to SDU `check_execution_status` when `execution_id` is known.
 
 ---
 
 ## Quick decision
 
-| You want… | Do this |
-|-----------|---------|
-| See my extractions in the product | `/results` → **Extractions** |
-| See batch or check runs | `/results` → **Batches** or **Checks** |
-| Script against DocuAgent | `GET /execution/sdu-extraction-executions` + Bearer |
-| Poll raw SDU after direct Agents POST | `GET …/air8_integration/check_execution_status` |
+| User wants… | Agent / integrator action |
+|-------------|---------------------------|
+| Status of a known run | `GET …/check_execution_status?execution_id=` (no API key) |
+| Full output + list by order | NestJS `GET /execution/sdu-extraction-executions` + Bearer |
+| Browse visually | `/results` in browser |
+| Config / threads / global config jobs | `docagent-config-agent` + `X-API-Key` |
+
+---
+
+## Share links
+
+From a completed extraction in the UI, **Share** may create a link (`POST …/:id/share` on execution service). Do not invent share URLs.

@@ -15,6 +15,8 @@
 
 The web app **does not** call Agents API for the Results page.
 
+If **`api.uat.doc-agent.lfxdigital.app` does not resolve** from the agent’s environment (common off VPN), the **list** `curl` still exists for the user’s laptop or for **prod** (`https://api.doc-agent.lfxdigital.app/v1`) with a token issued for that environment. **SDU** (`api.uat.t4s.lfxdigital.app`) may still work for **`check_execution_status`** when you have `execution_id`.
+
 ---
 
 ## Flow A — Human: browse recent runs (`/results`)

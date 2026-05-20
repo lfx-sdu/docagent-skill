@@ -48,6 +48,8 @@ The **Results UI does not call** Agents API for browsing or polling runs. See `d
 
 **Not** used for `GET /air8_integration/check_execution_status` (no auth on that route in OpenAPI). **Not** a substitute for Bearer JWT on NestJS `/execution/*`.
 
+**Automation (optional, never commit):** `DOCAGENT_NESTJS_BASE_URL` if UAT hostname does not resolve from the agent’s network; short-lived `DOCAGENT_BEARER_TOKEN` or service key for list/poll `curl`s. **Caching does not replace VPN, correct DNS, or valid tokens.**
+
 No base URL environment variable is required for standard onboarding — substitute the hostname only for non-UAT integrations.
 
 ### Check a run by execution id (no API key)
@@ -117,6 +119,10 @@ skills/
 README.md
 USERFLOW.md                    # Step-by-step: check results (agent-first)
 ```
+
+### Troubleshooting agent confusion
+
+If an agent claims there is **no API to list “latest runs”** while only mentioning `check_execution_status`, it missed the **NestJS** list (`GET …/execution/sdu-extraction-executions`). Point it at **`skills/docagent-results/SKILL.md`** (connectivity table + playbook). **No repo “cache”** fixes **DNS** (`NXDOMAIN` on NestJS host) or **401** (wrong token type); user needs VPN/prod base, or a valid **Bearer** / service key for that gateway.
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: docagent-results
-description: Check DocuAgent extraction, batch, and content-check results. Use when the user says "check results", "see my extraction", "recent runs", "is it done", "find order X", or "results page". Agents must run API calls when they have execution_id; never refuse with "I can't pull results from this workspace".
+description: Check DocuAgent extraction, batch, and content-check results. Use when the user says "check results", "see my extraction", "latest runs", "recent runs", "list extractions", "is it done", "find order X", or "results page". There is NO list-of-runs on Agents / SDU OpenAPI — browsing recent runs is NestJS GET /execution/sdu-extraction-executions + Bearer JWT (or team SA + X-Actor-Email), same as the /results UI; with only execution_id and no JWT, poll SDU check_execution_status. Never say only check_execution_status exists without also giving the NestJS list option. Never refuse with "I can't pull results from this workspace" when an id or token can be used. For DNS or 401, use the connectivity table in this skill body.
 ---
 
 # Check results (DocuAgent)
@@ -17,6 +17,17 @@ description: Check DocuAgent extraction, batch, and content-check results. Use w
 The **Results UI never calls** `/agents/v1/air8_integration/*`. It lists and polls **`/execution/*`** on the NestJS gateway.
 
 `DOCAGENT_AGENTS_API_KEY` is **Config Agent only** — not for listing Results rows.
+
+### If the user hits DNS / 401 / “empty” data (read before giving up)
+
+| Symptom | Meaning | What to do |
+|--------|---------|------------|
+| **`NXDOMAIN` or timeout** on `api.uat.doc-agent.lfxdigital.app` | This client often cannot resolve the **NestJS** host (VPN/DNS) | State the limit plainly. **Do not** conclude “there is no API to list runs.” Offer **/results** in the browser, **or** same list `curl` on the user’s machine, **or** **`https://api.doc-agent.lfxdigital.app/v1`** if their tenant/prod token targets prod. **SDU** `api.uat.t4s.lfxdigital.app` may still answer `check_execution_status` when the user has `execution_id`. |
+| **`401 Invalid service token`** on NestJS `/execution/*` | Wrong/expired Bearer, wrong environment, or using ConfigAgent key as Bearer | `DOCAGENT_AGENTS_API_KEY` is **not** a NestJS Bearer. User needs MSAL JWT, **service key** from `/login`, or **team SA** + `X-Actor-Email` for the **same** base URL (UAT vs prod). |
+| **`.env` only has Agents API key** | Enough for Config Agent paths + SDU poll | For **latest runs**, request a **Bearer** (paste once) or use the **Results UI** — not “nothing works.” |
+| **“Only SDU / check_execution_status exists”** | Omission | **Agents OpenAPI** has no tenant-wide **list**. **NestJS** **`GET /execution/sdu-extraction-executions`** implements “latest runs”; say both. |
+
+**Caching or extra repo config does not fix DNS or tokens.** Optional automation only: user may set **`DOCAGENT_NESTJS_BASE_URL`** (when UAT hostname is wrong for their network) and a short-lived **`DOCAGENT_BEARER_TOKEN`** for scripts — never commit; renew on 401.
 
 ---
 
@@ -46,7 +57,7 @@ This is an **agent shortcut**. The **product UI** polls `GET {DEV_API}/execution
 | "Results require Azure AD, not that key" | Keys are unrelated; SDU status GET needs neither key nor JWT |
 | "Send me execution id for the curl command" | **Run** the request and interpret the response |
 | Tell user UI uses `check_execution_status` | UI uses NestJS GET-by-id; SDU poll is agent fallback |
-| Default to Swagger when id is in chat | Poll first; UI second |
+| "There is no API for latest runs, only execution_id" | Agents OpenAPI has no list; **NestJS** has `GET …/sdu-extraction-executions` — same as Results |
 
 ---
 
